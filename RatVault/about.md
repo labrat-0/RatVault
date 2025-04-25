@@ -1,8 +1,4 @@
----
-tags: [about, meta]
-created: {{date}}
-updated: {{date}}
----
+
 
 # 🐀 About RatVault
 
