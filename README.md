@@ -89,7 +89,7 @@ If you create something useful, consider sharing it with the community! You can 
 
 ## ✍️ About the Author
 
-RatVault was created by Mick Donahue, a security professional passionate about knowledge management and security operations. This vault represents years of experience in the field and is designed to help others streamline their security workflows.
+RatVault was created by Mick Donahue, a security professional passionate about knowledge management and security operations. This vault is designed to help others streamline their security workflows.
 
 <div align="center">
   <p>If you find this resource valuable, consider:</p>
