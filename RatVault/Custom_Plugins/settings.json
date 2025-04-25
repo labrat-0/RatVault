@@ -1,0 +1,274 @@
+{
+  "theme": "obsidian",
+  "accentColor": "#9b59b6",
+  "translucency": false,
+  "nativeMenus": true,
+  "showFrontmatter": true,
+  "foldHeading": true,
+  "foldIndent": true,
+  "showLineNumber": true,
+  "readableLineLength": true,
+  "strictLineBreaks": true,
+  "showIndentGuide": true,
+  "rightToLeft": false,
+  "vimMode": false,
+  "alwaysUpdateLinks": true,
+  "userIgnoreFilters": [
+    "node_modules/",
+    ".git/"
+  ],
+  "attachmentFolderPath": "./Assets",
+  "newLinkFormat": "relative",
+  "useMarkdownLinks": false,
+  "newFileLocation": "folder",
+  "newFileFolderPath": "Daily Logs",
+  "useTab": true,
+  "tabSize": 4,
+  "promptDelete": true,
+  "spellcheck": true,
+  "spellcheckLanguages": [
+    "en-US"
+  ],
+  "enabledCssSnippets": [
+    "security-dashboard",
+    "threat-hunting-theme"
+  ],
+  "communityPluginSortOrder": "download",
+  "legacyEditor": false,
+  "livePreview": true,
+  "communityTheme": "Cybertron",
+  "communityPlugins": [
+    "dataview",
+    "obsidian-excalidraw-plugin",
+    "obsidian-kanban",
+    "templater-obsidian",
+    "calendar",
+    "obsidian-mind-map",
+    "obsidian-git",
+    "table-editor-obsidian",
+    "obsidian-tasks-plugin",
+    "obsidian-outliner",
+    "quickadd",
+    "obsidian-day-planner",
+    "obsidian-advanced-uri",
+    "obsidian-advanced-tables",
+    "obsidian-timeline",
+    "obsidian-query-language",
+    "obsidian-dice-roller"
+  ],
+  "pluginEnabledStatus": {
+    "file-explorer": true,
+    "global-search": true,
+    "switcher": true,
+    "graph": true,
+    "backlink": true,
+    "page-preview": true,
+    "templates": true,
+    "outline": true,
+    "workspaces": true,
+    "file-recovery": true,
+    "publish": false,
+    "sync": false,
+    "canvas": true,
+    "properties": true,
+    "bookmarks": true,
+    "markdown-importer": false,
+    "zk-prefixer": false,
+    "random-note": false,
+    "audio-recorder": false,
+    "word-count": true,
+    "slides": false,
+    "daily-notes": true,
+    "starred": true,
+    "command-palette": true,
+    "tag-pane": true
+  },
+  "cssTheme": "Cybertron",
+  "baseFontSize": 16,
+  "enabledPlugins": [
+    "dataview",
+    "obsidian-excalidraw-plugin",
+    "obsidian-kanban",
+    "templater-obsidian",
+    "calendar",
+    "obsidian-mind-map",
+    "obsidian-git",
+    "table-editor-obsidian",
+    "obsidian-tasks-plugin",
+    "obsidian-outliner",
+    "quickadd",
+    "obsidian-day-planner",
+    "obsidian-advanced-uri",
+    "obsidian-advanced-tables",
+    "obsidian-timeline"
+  ],
+  "hotkeys": {
+    "editor:toggle-code": [
+      {
+        "modifiers": [
+          "Mod",
+          "Shift"
+        ],
+        "key": "C"
+      }
+    ],
+    "editor:toggle-highlight": [
+      {
+        "modifiers": [
+          "Mod",
+          "Shift"
+        ],
+        "key": "H"
+      }
+    ],
+    "templater-obsidian:create-new-note-from-template": [
+      {
+        "modifiers": [
+          "Mod",
+          "Shift"
+        ],
+        "key": "T"
+      }
+    ],
+    "obsidian-excalidraw-plugin:insert-excalidraw-drawing": [
+      {
+        "modifiers": [
+          "Mod",
+          "Shift"
+        ],
+        "key": "D"
+      }
+    ],
+    "graph:open-local": [
+      {
+        "modifiers": [
+          "Mod"
+        ],
+        "key": "G"
+      }
+    ],
+    "editor:swap-line-up": [
+      {
+        "modifiers": [
+          "Alt"
+        ],
+        "key": "ArrowUp"
+      }
+    ],
+    "editor:swap-line-down": [
+      {
+        "modifiers": [
+          "Alt"
+        ],
+        "key": "ArrowDown"
+      }
+    ],
+    "app:toggle-left-sidebar": [
+      {
+        "modifiers": [
+          "Mod"
+        ],
+        "key": "\\"
+      }
+    ],
+    "app:toggle-right-sidebar": [
+      {
+        "modifiers": [
+          "Mod",
+          "Shift"
+        ],
+        "key": "\\"
+      }
+    ]
+  },
+  "dataview": {
+    "enabled": true,
+    "enableInlineDataview": true,
+    "enableInlineDataviewJS": true,
+    "prettyRender": true,
+    "enableDataviewJS": true,
+    "schemaVersion": 3
+  },
+  "templates": {
+    "folder": "Templates",
+    "dateFormat": "YYYY-MM-DD"
+  },
+  "daily-notes": {
+    "folder": "Daily Logs",
+    "format": "YYYY-MM-DD",
+    "template": "Templates/Daily_Logs/Daily_Log_Template.md"
+  },
+  "calendar": {
+    "firstDay": 0
+  },
+  "excalidraw": {
+    "theme": "dark",
+    "previewMatchObsidianTheme": true,
+    "dynamicStyling": "everything",
+    "compatibilityMode": true,
+    "exportWithTheme": true,
+    "autoexportSVG": true,
+    "embedType": "excalidraw",
+    "exportDirectory": "Assets/Excalidraw"
+  },
+  "kanban": {
+    "date-format": "YYYY-MM-DD",
+    "prepend-archive-separator": true,
+    "archive-with-date": true
+  },
+  "tasks": {
+    "enabled": true,
+    "statusTypes": [
+      {
+        "indicator": " ",
+        "className": "task-unfinished",
+        "name": "Todo",
+        "nextStatusIndicator": "x"
+      },
+      {
+        "indicator": "x",
+        "className": "task-done",
+        "name": "Done",
+        "nextStatusIndicator": "!"
+      },
+      {
+        "indicator": "/",
+        "className": "task-in-progress",
+        "name": "In Progress",
+        "nextStatusIndicator": "x"
+      },
+      {
+        "indicator": "!",
+        "className": "task-important",
+        "name": "Important",
+        "nextStatusIndicator": " "
+      },
+      {
+        "indicator": "?",
+        "className": "task-question",
+        "name": "Question",
+        "nextStatusIndicator": " "
+      },
+      {
+        "indicator": "-",
+        "className": "task-cancelled",
+        "name": "Cancelled",
+        "nextStatusIndicator": " "
+      }
+    ]
+  },
+  "templater": {
+    "templates_folder": "Templates",
+    "template_dates": [
+      {
+        "template": "Templates/Daily_Logs/Daily_Log_Template.md",
+        "folder": "Daily Logs"
+      }
+    ],
+    "script_folder": "Templates/Scripts",
+    "enable_system_commands": false,
+    "trigger_on_new_notes_in_specified_folders": true,
+    "empty_file_template": "Templates/default.md",
+    "enable_folder_templates": true
+  }
+} 
