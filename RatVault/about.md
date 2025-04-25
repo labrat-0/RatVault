@@ -12,7 +12,7 @@ RatVault is a comprehensive Obsidian vault designed specifically for security an
 
 ## 👨‍💻 About the Author
 
-RatVault was created by **Mick Donahue**, a security professional with expertise in digital forensics, incident response, and security operations. With years of experience in the field, Mick developed this vault to share practical knowledge and streamline security workflows for the community.
+RatVault was created by **Mick Donahue**, a cyber professional with expertise in digital forensics, incident response, and security operations. Mick developed this vault to share practical knowledge and streamline security workflows for the community.
 
 <div align="center">
   <a href="https://github.com/labrat-0"><img src="https://img.shields.io/badge/GitHub-@labrat--0-181717?style=for-the-badge&logo=github&logoColor=white"></a>
