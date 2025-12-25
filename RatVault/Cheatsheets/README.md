@@ -1,10 +1,3 @@
----
-tags: [cheatsheets, meta, documentation]
-created: {{date}}
-updated: {{date}}
-author: "Mick Donahue (@labrat-0)"
----
-
 # 📝 Security Cheatsheets Collection
 
 > This folder contains quick reference cheatsheets for security tools, scripting languages, query languages, and system analysis. Each cheatsheet is designed to provide concise, practical information for security operations.
@@ -63,4 +56,5 @@ These cheatsheets were created by [Mick Donahue (@labrat-0)](https://github.com/
 > 2. Group related commands together
 > 3. Include brief explanations when needed
 > 4. Add real-world examples for complex commands
+
 > 5. Link to detailed documentation for advanced topics 
