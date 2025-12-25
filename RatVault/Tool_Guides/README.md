@@ -1,10 +1,3 @@
----
-tags: [tool-guides, meta, documentation]
-created: {{date}}
-updated: {{date}}
-author: "Mick Donahue (@labrat-0)"
----
-
 # 🛠️ Security Tool Guides Collection
 
 > This folder contains practical guides for security tools used in incident response, threat hunting, digital forensics, and security monitoring. Each guide focuses on security-specific usage and practical examples.
@@ -65,4 +58,5 @@ These tool guides were created by [Mick Donahue (@labrat-0)](https://github.com/
 > 2. Include command syntax for both CLI and GUI options when available
 > 3. Maintain a section for common errors and their solutions
 > 4. Show sample outputs to help readers verify correct usage
+
 > 5. Link to official documentation for comprehensive reference 
