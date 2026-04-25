@@ -1,0 +1,19 @@
+{
+  "command_timeout": 5,
+  "enable_folder_templates": true,
+  "folder_templates": [
+    {
+      "folder": "Notes",
+      "template": "Templates/ingest_entry"
+    }
+  ],
+  "enable_system_commands": false,
+  "enable_file_templates": true,
+  "file_templates_folder": "Templates",
+  "templates_auto_rename": true,
+  "templates_folder": "Templates",
+  "trigger_on_file_creation": false,
+  "auto_jump_to_cursor": true,
+  "enable_ribbon_icon": true,
+  "show_status_bar": true
+}

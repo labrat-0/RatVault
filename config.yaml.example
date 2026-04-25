@@ -1,0 +1,27 @@
+# RatVault Configuration (config.yaml)
+# Copy to config.yaml and fill in your values
+
+# LLM Provider
+provider: ollama
+model: llama3.2
+
+# API Keys (only set for your chosen provider)
+openai_api_key: ""
+anthropic_api_key: ""
+openrouter_api_key: ""
+
+# Ollama
+ollama_base_url: "http://localhost:11434"
+
+# Output
+output_dir: Notes
+assets_dir: assets
+
+# Features
+cross_references: true
+fetch_remote_images: false
+enable_embedding: false
+
+# Generation parameters
+temperature: 0.3
+max_tokens: 1024

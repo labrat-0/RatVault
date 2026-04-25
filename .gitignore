@@ -1,2 +1,32 @@
 # GSD planning artifacts
 .planning/
+
+# Configuration and runtime
+.env
+config.yaml
+config.local.yaml
+
+# Runtime state and data
+data/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Ingest inbox
+inbox/
+
+# Assets (media files)
+assets/images/
+assets/videos/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

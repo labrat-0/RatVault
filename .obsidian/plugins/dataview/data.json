@@ -1,0 +1,8 @@
+{
+  "enableDataviewJS": true,
+  "enableInlineDataview": true,
+  "enableInlineDataviewJS": true,
+  "prettyRender": true,
+  "schemaVersion": 3,
+  "taskCompletionTracking": true
+}
