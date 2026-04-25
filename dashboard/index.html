@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="RatVault - Multi-LLM Knowledge Vault Dashboard">
+  <meta name="theme-color" content="#0a0a0a">
+  <title>RatVault Dashboard</title>
+
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/icon-512x512.png">
+  <link rel="apple-touch-icon" href="/icon-192x192.png">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <nav>
+      <div style="text-align: center; padding: 15px 0; border-bottom: 1px solid var(--border-muted); margin-bottom: 20px;">
+        <img src="/icon-192x192.png" alt="RatVault" style="width: 40px; height: 40px; border-radius: 4px;">
+        <h2 style="margin-top: 8px; font-size: 14px;">RatVault</h2>
+      </div>
+      <a href="#search" class="nav-link" data-view="search">🔍 Search</a>
+      <a href="#timeline" class="nav-link" data-view="timeline">📅 Timeline</a>
+      <a href="#gallery" class="nav-link" data-view="gallery">🖼️ Gallery</a>
+      <a href="#analytics" class="nav-link" data-view="analytics">📊 Analytics</a>
+      <a href="#settings" class="nav-link" data-view="settings">⚙️ Settings</a>
+    </nav>
+
+    <main>
+      <!-- Search View -->
+      <div id="view-search" class="view active">
+        <h1>🔍 Search Vault</h1>
+        <div class="search-box">
+          <input type="search" id="search-input" placeholder="Search entries, tags, content...">
+          <button onclick="performSearch()">Search</button>
+        </div>
+        <div id="search-results">
+          <p class="loading">Enter a search term...</p>
+        </div>
+      </div>
+
+      <!-- Timeline View -->
+      <div id="view-timeline" class="view">
+        <h1>📅 Timeline</h1>
+        <div id="timeline-container">
+          <p class="loading">Loading...</p>
+        </div>
+      </div>
+
+      <!-- Gallery View -->
+      <div id="view-gallery" class="view">
+        <h1>🖼️ Media Gallery</h1>
+
+        <h2>Images</h2>
+        <div id="gallery-images" class="gallery">
+          <p class="loading">Loading...</p>
+        </div>
+
+        <h2>Videos</h2>
+        <div id="gallery-videos" class="gallery">
+          <p class="loading">Loading...</p>
+        </div>
+      </div>
+
+      <!-- Analytics View -->
+      <div id="view-analytics" class="view">
+        <h1>📊 Analytics</h1>
+
+        <h2>Overview</h2>
+        <div id="analytics-overview" style="padding: 15px; background-color: var(--bg-secondary); border: 1px solid var(--border-muted);"></div>
+
+        <h2>Entries by Date</h2>
+        <div class="chart-container">
+          <canvas id="chart-entries" style="max-height: 300px;"></canvas>
+        </div>
+
+        <h2>By Provider</h2>
+        <div class="chart-container">
+          <canvas id="chart-provider" style="max-height: 250px;"></canvas>
+        </div>
+
+        <h2>Popular Tags</h2>
+        <div id="tags-cloud" class="cloud"></div>
+      </div>
+
+      <!-- Settings View -->
+      <div id="view-settings" class="view">
+        <h1>⚙️ Settings</h1>
+
+        <h2>API Configuration</h2>
+        <div class="settings-grid">
+          <div class="settings-group">
+            <h3>Provider</h3>
+            <label for="provider-select">LLM Provider</label>
+            <select id="provider-select" onchange="onProviderChange()">
+              <option value="ollama">Ollama (Local)</option>
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic (Claude)</option>
+              <option value="openrouter">OpenRouter</option>
+            </select>
+
+            <label for="model-input">Model</label>
+            <input type="text" id="model-input" placeholder="e.g., gpt-4o, claude-3-haiku">
+          </div>
+
+          <div class="settings-group">
+            <h3>API Keys</h3>
+            <label for="api-key-input">API Key</label>
+            <input type="password" id="api-key-input" placeholder="Your API key (masked)">
+            <button onclick="saveSettings()">Save Configuration</button>
+          </div>
+        </div>
+
+        <div id="settings-status"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/app.js" defer></script>
+  <script src="/js/search.js" defer></script>
+  <script src="/js/timeline.js" defer></script>
+  <script src="/js/gallery.js" defer></script>
+  <script src="/js/analytics.js" defer></script>
+  <script src="/js/settings.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js" defer></script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(err => {
+        console.log('Service Worker registration failed:', err);
+      });
+    }
+  </script>
+</body>
+</html>

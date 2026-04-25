@@ -1,108 +1,353 @@
-# 🔐 RatVault: Obsidian for Security Analysts
-
-> A curated Obsidian vault with templates, cheatsheets, and workflows for security operations, incident response, threat hunting, and more.
-
-## 👋 Welcome
-
-Welcome to RatVault - your comprehensive knowledge base and toolkit for security analysis!
-
-This vault was created by Mick Donahue as a resource for security professionals to quickly access templates, cheatsheets, reference guides, and workflows. Feel free to use, customize, and extend this vault for your own security operations.
-
 <div align="center">
-  <a href="https://github.com/labrat-0"><img src="https://img.shields.io/badge/GitHub-labrat--0-181717?style=for-the-badge&logo=github&logoColor=white"></a>&nbsp;&nbsp;
-  <a href="https://buymeacoffee.com/labrat"><img src="https://img.shields.io/badge/Buy_Me_A_Coffee-labrat-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black"></a>
+  <img src="dashboard/logo-256.png" alt="RatVault Logo" width="256" height="256">
+  <h1>RatVault 🐀</h1>
+  <p><strong>A multi-LLM knowledge vault inspired by <a href="https://github.com/karpathy/recipes">Andrej Karpathy's "Recipe for Training Neural Networks"</a></strong></p>
+  <p>Warm gratitude to Andrej for the insights that made this project possible.</p>
 </div>
 
-## 📋 Overview
-
-RatVault is an Obsidian vault configured specifically for security analysts, SOC teams, incident responders, and threat hunters. It provides a structured approach to security documentation, analysis, and knowledge management using the power of Obsidian's linking and knowledge graph.
+RatVault is a flexible, open-source knowledge management system that ingests raw notes, processes them with any LLM provider, and organizes them into a beautiful Obsidian-native vault.
 
 ## ✨ Features
 
-- 🔐 **Security analyst templates** - IR reports, malware analysis, threat hunting plans, and more
-- 🧾 **Cheatsheets** - KQL, PowerShell, Bash, Windows internals, and other reference materials
-- 📋 **Incident response & SOC workflows** - Standardized processes for handling security events
-- 📊 **Dashboards** - Canvas and Excalidraw visualizations for security operations
-- 🧰 **Tool integration guides** - How to use and integrate security tools
-- 🧠 **Notes with backlinks and dataviews** - Connect your security knowledge
+- 🤖 **Multi-LLM Support** — Works with OpenAI, Anthropic (Claude), Ollama (local), OpenRouter, and more  
+- 📝 **Raw → Structured** — Auto-generates summaries, tags, and cross-references from raw markdown  
+- 🖼️ **Media Preservation** — Automatically handles images, videos, and media files  
+- 🌐 **PWA Dashboard** — Web interface that works offline (no build step required)  
+- 🔭 **Obsidian Native** — Vault structure works directly in Obsidian with Dataview support  
+- ⚡ **Zero Setup** — One command to start: `python ingest.py --setup`  
 
-## 🚀 Getting Started
+## 🚀 Quick Start
 
-1. **Install Obsidian**: Download from [obsidian.md](https://obsidian.md/)
-2. **Open this vault**: Use "Open folder as vault" in Obsidian and select this folder
-3. **Install community plugins**: Go to Settings → Community Plugins → Browse and install the recommended plugins
-4. **Apply settings**: Copy the `settings.json` from the Custom_Plugins folder to your `.obsidian` folder if you want to use the recommended settings
+### 1. Clone & Install
 
-## 📦 Vault Structure
+```bash
+git clone https://github.com/labrat-0/RatVault.git
+cd RatVault
+pip install -r requirements.txt
+```
 
-| Folder | Contents |
-|--------|----------|
-| `Templates/` | Incident report, malware triage, threat hunting plans, daily logs |
-| `Cheatsheets/` | Query languages, scripting, systems reference |
-| `Tool_Guides/` | Guides for security tools and platforms |
-| `Threat_Intel/` | IOC templates, YARA rules, threat actor tracking |
-| `Daily_Logs/` | SOC daily log templates and entries |
-| `Custom_Plugins/` | Settings files and plugin configurations |
-| `Canvas_Dashboards/` | Visual dashboards for security operations |
+### 2. Configure
 
-## 💡 Recommended Plugins
+```bash
+python ingest.py --setup
+```
 
-- **Dataview**: For querying and displaying information from your notes
-- **Excalidraw**: For creating diagrams and visual representations
-- **Templater**: For enhanced template capabilities
-- **Kanban**: For visual task management
-- **Calendar**: For date-based navigation
-- **Advanced Tables**: For better table management
-- **Tasks**: For task tracking across notes
+Choose your provider and enter API key (or use local Ollama). Configuration is saved to `.env` or `config.yaml`.
 
-## 🎨 Recommended Themes
+### 3. Ingest Your First Note
 
-1. **Cybertron**: A dark theme with a retro-futuristic style perfect for security work
-2. **Obsidian Nord**: A clean, dark blue theme that reduces eye strain during long shifts
-3. **Terminal**: A terminal-inspired theme that brings a hacker aesthetic
+Drop a markdown file into the `inbox/` folder, then run:
 
-## 📝 Usage Tips
+```bash
+python ingest.py --dry-run    # See what will happen
+python ingest.py              # Actually process
+```
 
-1. **Daily Logs**: Start each shift by creating a new daily log from the template
-2. **Incident Documentation**: Use the IR template when responding to security incidents
-3. **Knowledge Building**: Link related notes using `[[double brackets]]` to build your knowledge graph
-4. **Dataview Queries**: Use dataview to create dashboards showing open incidents, tasks, or other data
-5. **Templates**: Use the templates as starting points and customize them to your needs
+### 4. View in Obsidian
 
-## 🤝 Contributing
+Open the repo root as a vault in Obsidian:
+- **File** → **Open folder as vault** → Select this directory
+- Navigate to `Notes/` folder
+- Check out `home.md` for the dashboard
 
-Feel free to enhance this vault with your own templates, cheatsheets, and workflows. Some suggested contributions:
+### 5. (Optional) Web Dashboard
 
-- Additional tool guides
-- New templates for specific security scenarios
-- Custom CSS snippets for security dashboards
-- Scripts to automate security tasks
+```bash
+python ingest.py --serve
+```
 
-If you create something useful, consider sharing it with the community! You can submit a pull request to the [GitHub repository](https://github.com/labrat-0) or reach out directly.
-
-## 📚 Resources
-
-- [Obsidian Help](https://help.obsidian.md/)
-- [Obsidian Forum](https://forum.obsidian.md/)
-- [Obsidian Plugins](https://obsidian.md/plugins)
-- [Obsidian Discord](https://discord.gg/obsidianmd)
-
-## ✍️ About the Author
-
-RatVault was created by Mick Donahue, a security professional passionate about knowledge management and security operations. This vault is designed to help others streamline their security workflows.
-
-<div align="center">
-  <p>If you find this resource valuable, consider:</p>
-  <a href="https://github.com/labrat-0"><img src="https://img.shields.io/badge/Follow_on_GitHub-@labrat--0-181717?style=for-the-badge&logo=github&logoColor=white"></a>
-  <br><br>
-  <a href="https://buymeacoffee.com/labrat"><img src="https://img.shields.io/badge/Support_My_Work-Buy_Me_A_Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black"></a>
-</div>
+Then open `http://localhost:8055` in your browser. Install as PWA for offline access.
 
 ---
 
-> [!tip] Security Notes Best Practices
-> 1. **Maintain Operational Security**: Be mindful of sensitive data
-> 2. **Regular Backups**: Back up your vault regularly
-> 3. **Consistent Structure**: Follow the established structure for new notes
-> 4. **Link Generously**: Create connections between related notes
-> 5. **Use YAML Frontmatter**: Add metadata to enable powerful filtering 
+## 📖 Configuration
+
+### Provider Setup
+
+Choose one of these methods:
+
+#### Option A: `.env` file
+```bash
+cp .env.example .env
+# Edit .env with your settings
+```
+
+**OpenAI:**
+```
+RATVAULT_PROVIDER=openai
+RATVAULT_MODEL=gpt-4o-mini
+OPENAI_API_KEY=sk-...
+```
+
+**Anthropic (Claude):**
+```
+RATVAULT_PROVIDER=anthropic
+RATVAULT_MODEL=claude-3-haiku-20240307
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+**Ollama (Local):**
+```
+RATVAULT_PROVIDER=ollama
+RATVAULT_MODEL=llama3.2
+OLLAMA_BASE_URL=http://localhost:11434
+```
+
+**OpenRouter:**
+```
+RATVAULT_PROVIDER=openrouter
+RATVAULT_MODEL=anthropic/claude-3-haiku
+OPENROUTER_API_KEY=sk-or-...
+```
+
+#### Option B: `config.yaml`
+```bash
+cp config.yaml.example config.yaml
+# Edit config.yaml
+```
+
+#### Option C: Interactive Wizard
+```bash
+python ingest.py --setup
+```
+
+---
+
+## 💻 Usage
+
+### Basic Ingest
+
+```bash
+# Preview changes without writing
+python ingest.py --dry-run
+
+# Process files from inbox/ folder
+python ingest.py
+
+# Force re-process even if already ingested
+python ingest.py --force
+
+# Specify custom input directory
+python ingest.py /path/to/files
+
+# Switch provider temporarily
+python ingest.py --provider anthropic --model claude-3-haiku
+```
+
+### Vault Structure
+
+```
+RatVault/
+├── inbox/              # Drop raw files here
+├── Notes/              # Processed entries (Obsidian vault)
+│   ├── home.md
+│   ├── entry1.md
+│   └── entry2.md
+├── assets/
+│   ├── images/         # Extracted images
+│   └── videos/         # Extracted videos
+├── Templates/          # Obsidian templates
+├── .obsidian/          # Obsidian configuration
+└── dashboard/          # Web dashboard (PWA)
+```
+
+### Entry Format
+
+Each processed entry is Markdown with YAML frontmatter:
+
+```yaml
+---
+title: "My Research Note"
+slug: "my-research-note"
+created: "2026-04-25"
+ingested_at: "2026-04-25T14:32:11Z"
+summary: "3-sentence summary auto-generated by LLM"
+tags: [research, ml, notes]
+category: research
+difficulty: intermediate
+key_concepts: [concept1, concept2]
+questions_answered: [question1, question2]
+source_file: "inbox/raw-note.md"
+provider: claude
+model: "claude-3-haiku-20240307"
+cross_refs: ["[[Related Note]]"]
+assets:
+  - {type: image, path: "assets/images/slug/diagram.png"}
+status: active
+type: note
+---
+
+# My Research Note
+
+Content here...
+```
+
+### 🌐 Web Dashboard
+
+Run `python ingest.py --serve` and open http://localhost:8055
+
+**Features:**
+- **🔍 Search** — Full-text search over entries and tags
+- **📅 Timeline** — Browse entries by date (newest first)
+- **🖼️ Gallery** — View all extracted images and videos
+- **📊 Analytics** — Charts: entries per day, tags cloud, provider usage
+- **⚙️ Settings** — Change provider, model, and API key
+- **📲 Installable** — Add to home screen as PWA (offline support)
+
+---
+
+## 🏗️ How It Works
+
+### The Ingest Pipeline
+
+1. **Discover** — Scan `inbox/` for `.md`, `.txt`, `.pdf` files
+2. **Parse** — Extract title, strip existing frontmatter
+3. **Media Extraction** — Copy images/videos to `assets/`, rewrite links
+   - Local images: `![alt](path)` → copied to `assets/images/{slug}/`
+   - YouTube/Vimeo URLs: wrapped in `> [!video]` callout
+   - Video files: copied to `assets/videos/{slug}/`
+4. **LLM Enrichment** — Call your configured LLM to generate:
+   - Auto-title (if not detected)
+   - Summary (2-3 sentences)
+   - Tags (5-10 kebab-case)
+   - Category (security|development|research|personal|reference|workflow)
+   - Key concepts and questions answered
+5. **Write** — Save as Markdown with YAML frontmatter to `Notes/`
+6. **State Tracking** — Remember processed files to avoid re-processing
+
+All files are skipped if already processed (unless `--force` is used).
+
+### Multi-LLM Abstraction
+
+`providers.py` supports 4 LLM providers with a unified interface:
+
+```python
+response = call_llm(prompt, system_message, config)
+# Returns: LLMResponse(content, model, provider, tokens, duration)
+```
+
+Retry logic: 3 attempts with exponential backoff (1s → 2s → 4s)
+
+---
+
+## 📚 Obsidian Integration
+
+The vault root is a valid Obsidian vault. Just open it:
+
+**File** → **Open folder as vault** → Select repo root
+
+### Recommended Plugins
+
+Already configured:
+- **Dataview** — Query entries as tables/lists
+- **Templater** — Template system for new notes
+- **Obsidian Git** — Auto-commit changes
+- **Calendar** — Browse by date
+- **QuickAdd** — Shortcuts for common actions
+
+### Home Dashboard
+
+`Notes/home.md` has Dataview queries showing:
+- Recent entries
+- Tag frequency cloud
+- Entries by provider
+- Draft entries needing review
+
+### Dataview Examples
+
+List all entries from Claude:
+```dataview
+TABLE summary, tags
+FROM "Notes"
+WHERE provider = "anthropic"
+SORT ingested_at DESC
+```
+
+Find draft entries:
+```dataview
+LIST
+FROM "Notes"
+WHERE status = "draft"
+SORT created DESC
+```
+
+---
+
+## 🔒 API Key Safety
+
+- API keys are stored in `.env` or `config.yaml`
+- Both files are in `.gitignore` — they won't commit to git
+- The web dashboard (`serve.py`) masks API key inputs
+- Local Ollama doesn't require an API key
+
+---
+
+## ❓ Troubleshooting
+
+**Q: Ingest hangs or is slow**  
+A: Check that your LLM provider is running. For Ollama: `ollama serve`. For OpenAI/Claude: check your internet connection.
+
+**Q: "No files found in inbox"**  
+A: Make sure `.md`, `.txt`, or `.pdf` files exist in the `inbox/` folder. Files are case-sensitive.
+
+**Q: Images don't show in Obsidian**  
+A: Make sure relative paths are correct. Images should be in `assets/images/{slug}/`. Check `> [!video]` callouts.
+
+**Q: Web dashboard won't start**  
+A: Make sure fastapi and uvicorn are installed: `pip install fastapi uvicorn`. Port 8055 might be in use; check with `lsof -i :8055`.
+
+---
+
+## 🤝 Contributing
+
+PRs welcome! Areas for contribution:
+- Support for more file formats (docx, odt, etc.)
+- Additional LLM providers
+- Enhanced media handling
+- Dashboard improvements
+- Documentation
+
+---
+
+## 📜 Credits
+
+🙏 **Andrej Karpathy** for the "recipes" concept that inspired this entire system. His insights about structured, reproducible workflows shaped RatVault's design.
+
+---
+
+## 📄 License
+
+MIT
+
+---
+
+## ❔ FAQ
+
+**Can I use this without an API key?**  
+Yes! Use Ollama (local LLM). Download from [ollama.ai](https://ollama.ai).
+
+**Can I import existing notes?**  
+Yes. Drop them in `inbox/` and run `python ingest.py`.
+
+**Can I switch LLM providers?**  
+Yes, anytime. Just change `.env` or `config.yaml` and re-run `ingest.py --force`.
+
+**Is the vault data portable?**  
+Yes. The vault is just Markdown files. Open in any text editor, move to another Obsidian vault, or use elsewhere.
+
+**Can I use this for production?**  
+RatVault is designed for personal knowledge management. For production use, consider self-hosting a backend or using an external service.
+
+---
+
+## 🚀 Getting Help
+
+- Check the `Notes/home.md` dashboard for examples
+- Review `config.yaml.example` for all configuration options
+- Run `python ingest.py --help` for all CLI flags
+- Open an issue on GitHub
+
+---
+
+Made with 🖤 by [labrat](https://ratbyte.dev)  
+Inspired by Andrej Karpathy's recipes for training neural networks.
