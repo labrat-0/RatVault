@@ -269,15 +269,38 @@ async def health():
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
-    """Handle chat queries against the knowledge vault"""
+    """Handle chat queries against the knowledge vault with RAG"""
     try:
         from pipeline.providers import call_llm
         from pipeline.config import load_config
         from pipeline.models import ProviderConfig
 
-        system_prompt = """You are a helpful assistant for RatVault, a developer knowledge base.
+        # Search vault for relevant entries
+        entries = load_vault_entries()
+        index = build_search_index(entries)
+        tokens = re.findall(r"\w+", request.message.lower())
+
+        matching_slugs = set()
+        for token in tokens:
+            if token in index:
+                matching_slugs.update(index[token])
+
+        relevant_entries = [e for e in entries if e.get("slug") in matching_slugs][:3]
+
+        # Build context from relevant entries
+        context = ""
+        if relevant_entries:
+            context = "\n\n## Relevant vault entries:\n"
+            for entry in relevant_entries:
+                context += f"- **{entry.get('title', 'Untitled')}**: {entry.get('summary', 'No summary')}\n"
+
+        system_prompt = f"""You are a helpful assistant for RatVault, a developer knowledge base.
 Help users learn about programming languages, tools, development environments, AI/LLM, and technology.
-Keep answers concise and practical. When relevant, suggest related vault topics."""
+Keep answers concise and practical. When relevant, suggest related vault topics.
+
+{context}
+
+Use the vault entries above as context when answering. If the user asks about something in the vault, reference those entries."""
 
         vault_config = load_config()
         provider_config = ProviderConfig(
@@ -299,11 +322,12 @@ Keep answers concise and practical. When relevant, suggest related vault topics.
         return {
             "reply": response.content,
             "model": response.model,
-            "provider": response.provider
+            "provider": response.provider,
+            "sources": [e.get("title") for e in relevant_entries]
         }
     except Exception as e:
         import traceback
-        return {"error": str(e), "reply": None, "traceback": traceback.format_exc()}
+        return {"error": str(e), "reply": None}
 
 
 from fastapi.responses import FileResponse as FastAPIFileResponse
