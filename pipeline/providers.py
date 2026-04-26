@@ -37,7 +37,7 @@ def call_llm(
     elif config.provider == "anthropic":
         return _call_anthropic(prompt, system, config)
     elif config.provider == "openai":
-        return _call_openai(prompt, system, config)
+        return _call_openai(prompt, system, config, json_mode=False)
     elif config.provider == "openrouter":
         return _call_openrouter(prompt, system, config)
     else:
@@ -60,15 +60,26 @@ def call_llm_json(
     Returns:
         Parsed JSON dict
     """
-    response = call_llm(prompt, system, config)
+    if config.provider == "openai":
+        response = _call_openai(prompt, system, config, json_mode=True)
+    else:
+        response = call_llm(prompt, system, config)
+
+    content = response.content.strip()
+    # Strip markdown code fences if present
+    if content.startswith("```"):
+        content = content.split("```", 2)[1]
+        if content.startswith("json"):
+            content = content[4:]
+        content = content.rsplit("```", 1)[0].strip()
 
     try:
-        return json.loads(response.content)
+        return json.loads(content)
     except json.JSONDecodeError:
-        retry_prompt = prompt + "\n\nYou MUST return valid JSON only. No markdown fences."
+        retry_prompt = prompt + "\n\nReturn ONLY valid JSON. No markdown, no fences, no explanation."
         retry_response = call_llm(retry_prompt, system, config)
         try:
-            return json.loads(retry_response.content)
+            return json.loads(retry_response.content.strip())
         except json.JSONDecodeError as e:
             raise LLMError(f"Failed to parse JSON from {config.provider}: {e}")
 
@@ -185,6 +196,7 @@ def _call_openai(
     prompt: str,
     system: str,
     config: ProviderConfig,
+    json_mode: bool = False,
 ) -> LLMResponse:
     """Call OpenAI API."""
     if not config.api_key:
@@ -196,22 +208,23 @@ def _call_openai(
         "Content-Type": "application/json",
     }
 
+    body = {
+        "model": config.model,
+        "max_tokens": config.max_tokens,
+        "temperature": config.temperature,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt},
+        ],
+    }
+    if json_mode:
+        body["response_format"] = {"type": "json_object"}
+
     for attempt in range(3):
         try:
             with httpx.Client(timeout=300.0) as client:
                 start_time = time.time()
-                response = client.post(
-                    url,
-                    headers=headers,
-                    json={
-                        "model": config.model,
-                        "max_tokens": config.max_tokens,
-                        "temperature": config.temperature,
-                        "system": system,
-                        "messages": [{"role": "user", "content": prompt}],
-                        "response_format": {"type": "json_object"},
-                    },
-                )
+                response = client.post(url, headers=headers, json=body)
                 duration_ms = int((time.time() - start_time) * 1000)
                 response.raise_for_status()
                 result = response.json()
@@ -265,8 +278,10 @@ def _call_openrouter(
                         "model": config.model,
                         "max_tokens": config.max_tokens,
                         "temperature": config.temperature,
-                        "system": system,
-                        "messages": [{"role": "user", "content": prompt}],
+                        "messages": [
+                            {"role": "system", "content": system},
+                            {"role": "user", "content": prompt},
+                        ],
                     },
                 )
                 duration_ms = int((time.time() - start_time) * 1000)

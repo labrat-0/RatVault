@@ -685,39 +685,25 @@
                     <option value="anthropic">Anthropic</option>
                     <option value="openrouter">OpenRouter</option>
                 </select>
-                <div class="setting-hint">Select your LLM provider</div>
+                <div class="setting-hint">Ollama runs locally — no API key needed</div>
             </div>
 
             <div class="setting-group">
                 <label>Model</label>
-                <select id="model-select">
-                    <optgroup label="Ollama (Local)">
-                        <option value="mistral:7b-instruct">mistral:7b-instruct</option>
-                        <option value="phi3:mini">phi3:mini</option>
-                        <option value="deepseek-coder:6.7b-instruct">deepseek-coder:6.7b-instruct</option>
-                    </optgroup>
-                    <optgroup label="OpenAI">
-                        <option value="gpt-4o-mini">gpt-4o-mini</option>
-                        <option value="gpt-4o">gpt-4o</option>
-                        <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
-                    </optgroup>
-                    <optgroup label="Anthropic">
-                        <option value="claude-haiku-4-5-20251001">claude-haiku-4-5</option>
-                        <option value="claude-sonnet-4-5">claude-sonnet-4-5</option>
-                        <option value="claude-opus-4-5">claude-opus-4-5</option>
-                    </optgroup>
-                </select>
+                <select id="model-select"></select>
             </div>
 
-            <div class="setting-group">
-                <label>API Key (optional)</label>
+            <div class="setting-group" id="api-key-group">
+                <label>API Key</label>
                 <input type="password" id="api-key-input" placeholder="sk-..." />
-                <div class="setting-hint">For OpenAI, Anthropic, OpenRouter</div>
+                <div class="setting-hint" id="api-key-hint"></div>
             </div>
+
+            <div id="config-status" style="font-size:11px; color:var(--dim); margin-bottom:8px;"></div>
 
             <div class="modal-actions">
                 <button class="btn" id="close-settings">Cancel</button>
-                <button class="btn btn-primary" id="save-settings">Save</button>
+                <button class="btn btn-primary" id="save-settings">Save &amp; Apply</button>
             </div>
         </div>
     </div>
@@ -745,7 +731,7 @@
                     btn.addEventListener('click', (e) => {
                         if (e.target.id === 'settings-btn') {
                             this.openSettings();
-                        } else {
+                        } else if (e.target.dataset.view) {
                             this.switchView(e.target.dataset.view);
                         }
                     });
@@ -761,7 +747,6 @@
                 document.getElementById('search-input').addEventListener('input', (e) => this.search(e.target.value));
 
                 // Settings
-                document.getElementById('settings-btn').addEventListener('click', () => this.openSettings());
                 document.getElementById('close-settings').addEventListener('click', () => this.closeSettings());
                 document.getElementById('save-settings').addEventListener('click', () => this.saveSettings());
 
@@ -922,30 +907,93 @@
                 document.getElementById('settings-modal').classList.remove('active');
             }
 
+            MODELS = {
+                ollama: ['mistral:7b-instruct', 'phi3:mini', 'deepseek-coder:6.7b-instruct'],
+                openai: ['gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo'],
+                anthropic: ['claude-haiku-4-5-20251001', 'claude-sonnet-4-5', 'claude-opus-4-5'],
+                openrouter: ['anthropic/claude-3-haiku', 'openai/gpt-4o-mini', 'mistralai/mistral-7b-instruct'],
+            };
+
+            API_KEY_HINTS = {
+                ollama: 'No key needed — Ollama runs locally',
+                openai: 'Get key at platform.openai.com',
+                anthropic: 'Get key at console.anthropic.com',
+                openrouter: 'Get key at openrouter.ai/keys',
+            };
+
             loadSettings() {
                 const settings = JSON.parse(localStorage.getItem('ratvault-settings') || '{}');
-                if (settings.provider) document.getElementById('provider-select').value = settings.provider;
-                if (settings.model) document.getElementById('model-select').value = settings.model;
-                // Default to what's installed if no prior settings
-                if (!settings.model) {
-                    document.getElementById('model-select').value = 'mistral:7b-instruct';
+                const provider = settings.provider || 'ollama';
+                document.getElementById('provider-select').value = provider;
+                this.updateModelOptions(provider, settings.model);
+                document.getElementById('provider-select').addEventListener('change', (e) => {
+                    this.updateModelOptions(e.target.value, null);
+                });
+            }
+
+            updateModelOptions(provider, selectedModel) {
+                const modelSel = document.getElementById('model-select');
+                const models = this.MODELS[provider] || [];
+                modelSel.textContent = '';
+                models.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m;
+                    opt.textContent = m;
+                    modelSel.appendChild(opt);
+                });
+                if (selectedModel && models.includes(selectedModel)) {
+                    modelSel.value = selectedModel;
                 }
+
+                const keyGroup = document.getElementById('api-key-group');
+                const hint = document.getElementById('api-key-hint');
+                hint.textContent = this.API_KEY_HINTS[provider] || '';
+                keyGroup.style.display = provider === 'ollama' ? 'none' : 'block';
             }
 
-            saveSettings() {
-                const settings = {
-                    provider: document.getElementById('provider-select').value,
-                    model: document.getElementById('model-select').value,
-                    apiKey: document.getElementById('api-key-input').value
-                };
-                localStorage.setItem('ratvault-settings', JSON.stringify(settings));
+            async openSettings() {
+                document.getElementById('settings-modal').classList.add('active');
+                // Load current server config
+                try {
+                    const res = await fetch('/api/config');
+                    const cfg = await res.json();
+                    const statusEl = document.getElementById('config-status');
+                    const keys = [];
+                    if (cfg.has_openai_key) keys.push('OpenAI key saved');
+                    if (cfg.has_anthropic_key) keys.push('Anthropic key saved');
+                    if (cfg.has_openrouter_key) keys.push('OpenRouter key saved');
+                    statusEl.textContent = keys.length ? '// ' + keys.join(' · ') : '// no API keys saved yet';
+                } catch (_) {}
+            }
+
+            closeSettings() {
+                document.getElementById('settings-modal').classList.remove('active');
+            }
+
+            async saveSettings() {
+                const provider = document.getElementById('provider-select').value;
+                const model = document.getElementById('model-select').value;
+                const apiKey = document.getElementById('api-key-input').value.trim();
+
+                const local = { provider, model, apiKey };
+                localStorage.setItem('ratvault-settings', JSON.stringify(local));
+
+                // Persist to server config.yaml
+                try {
+                    await fetch('/api/config', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ provider, model, api_key: apiKey || null }),
+                    });
+                } catch (_) {}
+
                 this.closeSettings();
-                this.updateStatusModel(settings.provider, settings.model);
+                this.updateStatusBar(provider, model);
             }
 
-            updateStatusModel(provider, model) {
+            updateStatusBar(provider, model) {
                 const el = document.getElementById('status-model');
-                if (el) el.textContent = `${provider || 'ollama'}:${model || 'mistral:7b-instruct'}`;
+                if (el) el.textContent = `${provider}:${model}`;
             }
         }
 

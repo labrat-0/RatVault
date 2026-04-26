@@ -228,14 +228,60 @@ async def get_tags():
     return [{"tag": t, "count": c} for t, c in sorted_tags]
 
 
+@app.get("/api/config")
+async def get_config():
+    """Get current configuration (masks API keys)."""
+    try:
+        from pipeline.config import load_config
+        config = load_config()
+        return {
+            "provider": config.provider,
+            "model": config.model,
+            "has_openai_key": bool(config.openai_api_key),
+            "has_anthropic_key": bool(config.anthropic_api_key),
+            "has_openrouter_key": bool(config.openrouter_api_key),
+            "ollama_base_url": config.ollama_base_url,
+            "temperature": config.temperature,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class ConfigUpdate(BaseModel):
+    provider: Optional[str] = None
+    model: Optional[str] = None
+    api_key: Optional[str] = None
+    temperature: Optional[float] = None
+
+
 @app.post("/api/config")
-async def update_config(config: dict):
-    """Update configuration."""
+async def update_config(update: ConfigUpdate):
+    """Update configuration and persist to config.yaml."""
     try:
         config_path = Path("config.yaml")
+        existing = {}
+        if config_path.exists():
+            with open(config_path) as f:
+                existing = yaml.safe_load(f) or {}
+
+        if update.provider:
+            existing["provider"] = update.provider
+        if update.model:
+            existing["model"] = update.model
+        if update.temperature is not None:
+            existing["temperature"] = update.temperature
+        if update.api_key and update.provider:
+            key_map = {
+                "openai": "openai_api_key",
+                "anthropic": "anthropic_api_key",
+                "openrouter": "openrouter_api_key",
+            }
+            if update.provider in key_map:
+                existing[key_map[update.provider]] = update.api_key
+
         with open(config_path, "w") as f:
-            yaml.dump(config, f, default_flow_style=False)
-        return {"status": "ok"}
+            yaml.dump(existing, f, default_flow_style=False)
+        return {"status": "ok", "config": {k: v for k, v in existing.items() if "key" not in k}}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -306,18 +352,20 @@ Keep answers concise and practical. When relevant, suggest related vault topics.
 Use the vault entries above as context when answering. If the user asks about something in the vault, reference those entries."""
 
         vault_config = load_config()
-        provider = request.provider or vault_config.provider
-        model = request.model or vault_config.model
+        # Apply per-request overrides onto vault_config, then use get_provider_config()
+        if request.provider:
+            vault_config.provider = request.provider
+        if request.model:
+            vault_config.model = request.model
+        if request.api_key:
+            if vault_config.provider == "openai":
+                vault_config.openai_api_key = request.api_key
+            elif vault_config.provider == "anthropic":
+                vault_config.anthropic_api_key = request.api_key
+            elif vault_config.provider == "openrouter":
+                vault_config.openrouter_api_key = request.api_key
 
-        provider_config = ProviderConfig(
-            provider=provider,
-            model=model,
-            ollama_base_url=getattr(vault_config, 'ollama_base_url', 'http://localhost:11434'),
-            openai_api_key=request.api_key or getattr(vault_config, 'openai_api_key', None),
-            anthropic_api_key=request.api_key or getattr(vault_config, 'anthropic_api_key', None),
-            openrouter_api_key=request.api_key or getattr(vault_config, 'openrouter_api_key', None),
-            temperature=getattr(vault_config, 'temperature', 0.3)
-        )
+        provider_config = vault_config.get_provider_config()
 
         response = call_llm(
             prompt=request.message,
