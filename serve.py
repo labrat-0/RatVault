@@ -29,6 +29,9 @@ app.add_middleware(
 class ChatRequest(BaseModel):
     message: str
     history: list = []
+    provider: Optional[str] = None
+    model: Optional[str] = None
+    api_key: Optional[str] = None
 
 
 @app.on_event("startup")
@@ -303,14 +306,17 @@ Keep answers concise and practical. When relevant, suggest related vault topics.
 Use the vault entries above as context when answering. If the user asks about something in the vault, reference those entries."""
 
         vault_config = load_config()
+        provider = request.provider or vault_config.provider
+        model = request.model or vault_config.model
+
         provider_config = ProviderConfig(
-            provider=vault_config.provider,
-            model=vault_config.model,
+            provider=provider,
+            model=model,
             ollama_base_url=getattr(vault_config, 'ollama_base_url', 'http://localhost:11434'),
-            openai_api_key=getattr(vault_config, 'openai_api_key', None),
-            anthropic_api_key=getattr(vault_config, 'anthropic_api_key', None),
-            openrouter_api_key=getattr(vault_config, 'openrouter_api_key', None),
-            temperature=getattr(vault_config, 'temperature', 0.7)
+            openai_api_key=request.api_key or getattr(vault_config, 'openai_api_key', None),
+            anthropic_api_key=request.api_key or getattr(vault_config, 'anthropic_api_key', None),
+            openrouter_api_key=request.api_key or getattr(vault_config, 'openrouter_api_key', None),
+            temperature=getattr(vault_config, 'temperature', 0.3)
         )
 
         response = call_llm(

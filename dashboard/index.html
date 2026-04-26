@@ -691,11 +691,21 @@
             <div class="setting-group">
                 <label>Model</label>
                 <select id="model-select">
-                    <option value="mistral">Mistral (Ollama)</option>
-                    <option value="llama2">Llama2 (Ollama)</option>
-                    <option value="gpt-3.5-turbo">GPT-3.5 (OpenAI)</option>
-                    <option value="gpt-4">GPT-4 (OpenAI)</option>
-                    <option value="claude-opus">Claude 3.5 (Anthropic)</option>
+                    <optgroup label="Ollama (Local)">
+                        <option value="mistral:7b-instruct">mistral:7b-instruct</option>
+                        <option value="phi3:mini">phi3:mini</option>
+                        <option value="deepseek-coder:6.7b-instruct">deepseek-coder:6.7b-instruct</option>
+                    </optgroup>
+                    <optgroup label="OpenAI">
+                        <option value="gpt-4o-mini">gpt-4o-mini</option>
+                        <option value="gpt-4o">gpt-4o</option>
+                        <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+                    </optgroup>
+                    <optgroup label="Anthropic">
+                        <option value="claude-haiku-4-5-20251001">claude-haiku-4-5</option>
+                        <option value="claude-sonnet-4-5">claude-sonnet-4-5</option>
+                        <option value="claude-opus-4-5">claude-opus-4-5</option>
+                    </optgroup>
                 </select>
             </div>
 
@@ -776,11 +786,19 @@
                 this.addMessage('user', message);
                 input.value = '';
 
+                const settings = JSON.parse(localStorage.getItem('ratvault-settings') || '{}');
+
                 try {
                     const response = await fetch('/api/chat', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message, history: this.messages })
+                        body: JSON.stringify({
+                            message,
+                            history: this.messages,
+                            provider: settings.provider || null,
+                            model: settings.model || null,
+                            api_key: settings.apiKey || null
+                        })
                     });
                     const data = await response.json();
                     if (data.reply) {
@@ -802,7 +820,7 @@
 
                 const label = document.createElement('span');
                 label.className = 'message-label';
-                label.textContent = role === 'user' ? '&lt;' : '&gt;';
+                label.textContent = role === 'user' ? '<' : '>';
                 messageEl.appendChild(label);
 
                 const bubble = document.createElement('div');
@@ -908,6 +926,10 @@
                 const settings = JSON.parse(localStorage.getItem('ratvault-settings') || '{}');
                 if (settings.provider) document.getElementById('provider-select').value = settings.provider;
                 if (settings.model) document.getElementById('model-select').value = settings.model;
+                // Default to what's installed if no prior settings
+                if (!settings.model) {
+                    document.getElementById('model-select').value = 'mistral:7b-instruct';
+                }
             }
 
             saveSettings() {
@@ -918,7 +940,12 @@
                 };
                 localStorage.setItem('ratvault-settings', JSON.stringify(settings));
                 this.closeSettings();
-                this.loadStats();
+                this.updateStatusModel(settings.provider, settings.model);
+            }
+
+            updateStatusModel(provider, model) {
+                const el = document.getElementById('status-model');
+                if (el) el.textContent = `${provider || 'ollama'}:${model || 'mistral:7b-instruct'}`;
             }
         }
 
