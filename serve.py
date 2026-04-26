@@ -11,8 +11,24 @@ import yaml
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 app = FastAPI(title="RatVault Dashboard")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+class ChatRequest(BaseModel):
+    message: str
+    history: list = []
 
 
 @app.on_event("startup")
@@ -249,6 +265,33 @@ async def get_providers():
 async def health():
     """Health check endpoint."""
     return {"status": "ok"}
+
+
+@app.post("/api/chat")
+async def chat(request: ChatRequest):
+    """Handle chat queries against the knowledge vault"""
+    try:
+        from pipeline.providers import call_llm
+        from pipeline.models import LLMConfig
+
+        system_prompt = """You are a helpful assistant for RatVault, a developer knowledge base.
+Help users learn about programming languages, tools, development environments, AI/LLM, and technology.
+Keep answers concise and practical. When relevant, suggest related vault topics."""
+
+        config = LLMConfig()
+        response = call_llm(
+            prompt=request.message,
+            system_message=system_prompt,
+            config=config
+        )
+
+        return {
+            "reply": response.content,
+            "model": response.model,
+            "provider": response.provider
+        }
+    except Exception as e:
+        return {"error": str(e), "reply": None}
 
 
 app.mount("/", StaticFiles(directory="dashboard", html=True), name="dashboard")
