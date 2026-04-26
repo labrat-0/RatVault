@@ -272,17 +272,28 @@ async def chat(request: ChatRequest):
     """Handle chat queries against the knowledge vault"""
     try:
         from pipeline.providers import call_llm
-        from pipeline.models import LLMConfig
+        from pipeline.config import load_config
+        from pipeline.models import ProviderConfig
 
         system_prompt = """You are a helpful assistant for RatVault, a developer knowledge base.
 Help users learn about programming languages, tools, development environments, AI/LLM, and technology.
 Keep answers concise and practical. When relevant, suggest related vault topics."""
 
-        config = LLMConfig()
+        vault_config = load_config()
+        provider_config = ProviderConfig(
+            provider=vault_config.provider,
+            model=vault_config.model,
+            ollama_base_url=getattr(vault_config, 'ollama_base_url', 'http://localhost:11434'),
+            openai_api_key=getattr(vault_config, 'openai_api_key', None),
+            anthropic_api_key=getattr(vault_config, 'anthropic_api_key', None),
+            openrouter_api_key=getattr(vault_config, 'openrouter_api_key', None),
+            temperature=getattr(vault_config, 'temperature', 0.7)
+        )
+
         response = call_llm(
             prompt=request.message,
-            system_message=system_prompt,
-            config=config
+            system=system_prompt,
+            config=provider_config
         )
 
         return {
@@ -291,7 +302,20 @@ Keep answers concise and practical. When relevant, suggest related vault topics.
             "provider": response.provider
         }
     except Exception as e:
-        return {"error": str(e), "reply": None}
+        import traceback
+        return {"error": str(e), "reply": None, "traceback": traceback.format_exc()}
 
 
-app.mount("/", StaticFiles(directory="dashboard", html=True), name="dashboard")
+from fastapi.responses import FileResponse as FastAPIFileResponse
+
+@app.get("/{file_path:path}")
+async def serve_files(file_path: str):
+    """Serve static files from dashboard directory"""
+    from pathlib import Path
+    file_full_path = Path("dashboard") / file_path
+    if file_full_path.is_file():
+        return FastAPIFileResponse(file_full_path)
+    elif file_path == "" or file_path == "/":
+        return FastAPIFileResponse("dashboard/index.html")
+    else:
+        return FastAPIFileResponse("dashboard/index.html")

@@ -1,40 +1,33 @@
 {
-  "name": "RatVault",
+  "name": "RatVault - Knowledge Vault for Indie Hackers",
   "short_name": "RatVault",
-  "description": "Knowledge Vault Dashboard - Multi-LLM powered knowledge management",
+  "description": "A multi-LLM knowledge vault with chat-powered search for developers and indie hackers",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "theme_color": "#0f172a",
+  "background_color": "#0f172a",
   "orientation": "portrait-primary",
-  "background_color": "#0a0a0a",
-  "theme_color": "#00ff00",
   "icons": [
     {
-      "src": "/icon-192x192.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512x512.png",
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ],
-  "categories": ["productivity"],
+  "categories": ["productivity", "education"],
   "screenshots": [
     {
-      "src": "/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "form_factor": "wide"
-    },
-    {
-      "src": "/icon-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "form_factor": "narrow"
+      "src": "/assets/logos/rat-vault-logo.jpg",
+      "sizes": "540x720",
+      "type": "image/jpeg"
     }
   ]
 }

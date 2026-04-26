@@ -1,140 +1,941 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="RatVault - Multi-LLM Knowledge Vault Dashboard">
-  <meta name="theme-color" content="#0a0a0a">
-  <title>RatVault Dashboard</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="RatVault - A multi-LLM knowledge vault for indie hackers and developers">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>RatVault - Knowledge Vault</title>
+    <link rel="icon" type="image/png" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    <link rel="manifest" href="/manifest.json">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration failed:', err));
+            });
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jetbrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-  <link rel="manifest" href="/manifest.json">
-  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192x192.png">
-  <link rel="icon" type="image/png" sizes="512x512" href="/icon-512x512.png">
-  <link rel="apple-touch-icon" href="/icon-192x192.png">
-  <link rel="stylesheet" href="/css/style.css">
+        :root {
+            --primary: #0f172a;
+            --secondary: #1e293b;
+            --accent: #00d9ff;
+            --accent-warm: #ff6b35;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --border: #334155;
+            --transition: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1a1f3a 50%, #0f172a 100%);
+            color: var(--text-primary);
+            line-height: 1.5;
+            overflow-x: hidden;
+            min-height: 100vh;
+            background-attachment: fixed;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(circle at 20% 50%, rgba(0, 217, 255, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255, 107, 53, 0.02) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* Header */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+            padding: 0.6rem 1.2rem;
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            text-decoration: none;
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        .logo-icon {
+            width: 28px;
+            height: 28px;
+            flex-shrink: 0;
+        }
+
+        .logo-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .logo-text h1 {
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+
+        nav {
+            display: flex;
+            gap: 0.3rem;
+        }
+
+        .nav-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 0.35rem 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transition: all 0.3s var(--transition);
+        }
+
+        .nav-btn:hover {
+            background: var(--accent);
+            color: var(--primary);
+            border-color: var(--accent);
+        }
+
+        .nav-btn.active {
+            background: var(--accent);
+            color: var(--primary);
+            border-color: var(--accent);
+        }
+
+        /* Main Layout */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1rem;
+            display: grid;
+            grid-template-columns: 1fr 280px;
+            gap: 1rem;
+        }
+
+        /* View Container */
+        .view {
+            display: none;
+        }
+
+        .view.active {
+            display: block;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 600;
+            font-size: 0.8rem;
+            transition: all 0.3s var(--transition);
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: var(--primary);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(0, 217, 255, 0.3);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(0, 217, 255, 0.08);
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.7rem;
+            font-size: 0.7rem;
+        }
+
+        /* Chat Section */
+        .chat-main {
+            display: flex;
+            flex-direction: column;
+            background: rgba(51, 65, 85, 0.08);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            height: 600px;
+        }
+
+        .chat-header {
+            padding: 0.8rem;
+            background: linear-gradient(135deg, rgba(0, 217, 255, 0.08), rgba(255, 107, 53, 0.03));
+            border-bottom: 1px solid var(--border);
+        }
+
+        .chat-header h2 {
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.8rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .message {
+            display: flex;
+            gap: 0.6rem;
+            animation: slideIn 0.25s var(--transition);
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(8px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-bubble {
+            max-width: 80%;
+            padding: 0.6rem 0.85rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .message.assistant .message-bubble {
+            background: rgba(0, 217, 255, 0.12);
+            border: 1px solid rgba(0, 217, 255, 0.2);
+        }
+
+        .message.user .message-bubble {
+            background: var(--accent);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .message.error .message-bubble {
+            background: rgba(255, 107, 53, 0.15);
+            border: 1px solid rgba(255, 107, 53, 0.3);
+        }
+
+        .chat-input-section {
+            padding: 0.8rem;
+            background: rgba(15, 23, 42, 0.6);
+            border-top: 1px solid var(--border);
+        }
+
+        .chat-input-wrapper {
+            display: flex;
+            gap: 0.4rem;
+        }
+
+        .chat-input-wrapper input,
+        .chat-input-wrapper button {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        #chat-input {
+            flex: 1;
+            background: rgba(51, 65, 85, 0.3);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 0.5rem 0.8rem;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            transition: all 0.3s var(--transition);
+        }
+
+        #chat-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: rgba(51, 65, 85, 0.5);
+            box-shadow: 0 0 12px rgba(0, 217, 255, 0.12);
+        }
+
+        #chat-send {
+            padding: 0.5rem 1rem;
+            background: var(--accent);
+            color: var(--primary);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.75rem;
+            transition: all 0.3s var(--transition);
+        }
+
+        #chat-send:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(0, 217, 255, 0.25);
+        }
+
+        /* Sidebar Cards */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+
+        .card {
+            background: rgba(51, 65, 85, 0.08);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            transition: all 0.3s var(--transition);
+            cursor: pointer;
+        }
+
+        .card:hover {
+            border-color: var(--accent);
+            background: rgba(51, 65, 85, 0.12);
+            transform: translateY(-1px);
+        }
+
+        .card h3 {
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-bottom: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .card-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.4rem 0;
+            font-size: 0.75rem;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.3);
+        }
+
+        .card-item:last-child {
+            border-bottom: none;
+        }
+
+        .card-value {
+            font-family: 'Jetbrains Mono', monospace;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        /* Settings Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: rgba(30, 41, 59, 0.95);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.5rem;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal h2 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .setting-group {
+            margin-bottom: 1.2rem;
+        }
+
+        .setting-group label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .setting-group select,
+        .setting-group input {
+            width: 100%;
+            background: rgba(51, 65, 85, 0.3);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 0.6rem;
+            border-radius: 5px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.8rem;
+            transition: all 0.3s var(--transition);
+        }
+
+        .setting-group select:focus,
+        .setting-group input:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: rgba(51, 65, 85, 0.5);
+            box-shadow: 0 0 12px rgba(0, 217, 255, 0.12);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+            justify-content: flex-end;
+        }
+
+        /* Views */
+        .search-results {
+            display: grid;
+            gap: 0.8rem;
+        }
+
+        .result-item {
+            background: rgba(51, 65, 85, 0.08);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s var(--transition);
+        }
+
+        .result-item:hover {
+            border-color: var(--accent);
+            background: rgba(51, 65, 85, 0.12);
+        }
+
+        .result-item h4 {
+            font-size: 0.85rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .result-item p {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .grid-view {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 0.8rem;
+        }
+
+        .grid-item {
+            aspect-ratio: 1;
+            background: rgba(51, 65, 85, 0.08);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.8rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s var(--transition);
+        }
+
+        .grid-item:hover {
+            border-color: var(--accent);
+            background: rgba(0, 217, 255, 0.08);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 217, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 217, 255, 0.4);
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                grid-column: 1;
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-wrap: wrap;
+            }
+
+            nav {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .container {
+                padding: 0.8rem;
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                grid-template-columns: 1fr;
+            }
+
+            .chat-main {
+                height: 500px;
+            }
+
+            .grid-view {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <nav>
-      <div style="text-align: center; padding: 15px 0; border-bottom: 1px solid var(--border-muted); margin-bottom: 20px;">
-        <img src="/icon-192x192.png" alt="RatVault" style="width: 40px; height: 40px; border-radius: 4px;">
-        <h2 style="margin-top: 8px; font-size: 14px;">RatVault</h2>
-      </div>
-      <a href="#search" class="nav-link" data-view="search">🔍 Search</a>
-      <a href="#timeline" class="nav-link" data-view="timeline">📅 Timeline</a>
-      <a href="#gallery" class="nav-link" data-view="gallery">🖼️ Gallery</a>
-      <a href="#analytics" class="nav-link" data-view="analytics">📊 Analytics</a>
-      <a href="#settings" class="nav-link" data-view="settings">⚙️ Settings</a>
-    </nav>
-
-    <main>
-      <!-- Search View -->
-      <div id="view-search" class="view active">
-        <h1>🔍 Search Vault</h1>
-        <div class="search-box">
-          <input type="search" id="search-input" placeholder="Search entries, tags, content...">
-          <button onclick="performSearch()">Search</button>
+    <!-- Header -->
+    <header>
+        <div class="header-content">
+            <a href="#" class="logo-section" id="logo-btn">
+                <div class="logo-icon">
+                    <img src="/assets/logos/rat-tui-logo.png" alt="RatVault">
+                </div>
+                <div class="logo-text">
+                    <h1>RatVault</h1>
+                </div>
+            </a>
+            <nav>
+                <button class="nav-btn active" data-view="chat">Chat</button>
+                <button class="nav-btn" data-view="search">Search</button>
+                <button class="nav-btn" data-view="analytics">Stats</button>
+                <button class="nav-btn" data-view="settings" id="settings-btn">⚙</button>
+            </nav>
         </div>
-        <div id="search-results">
-          <p class="loading">Enter a search term...</p>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Chat View -->
+        <section class="view active" id="chat-view">
+            <div class="chat-main">
+                <div class="chat-header">
+                    <h2>Chat with RatVault</h2>
+                </div>
+                <div class="chat-messages" id="chat-messages">
+                    <div class="message assistant">
+                        <div class="message-bubble">Welcome to RatVault! Ask me about anything in your knowledge vault.</div>
+                    </div>
+                </div>
+                <div class="chat-input-section">
+                    <div class="chat-input-wrapper">
+                        <input type="text" id="chat-input" placeholder="Ask..." autocomplete="off" />
+                        <button id="chat-send">Send</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Search View -->
+        <section class="view" id="search-view">
+            <div style="background: rgba(51, 65, 85, 0.08); border: 1px solid var(--border); border-radius: 10px; padding: 1rem;">
+                <div style="margin-bottom: 1rem;">
+                    <input type="text" id="search-input" placeholder="Search vault..." style="width: 100%; background: rgba(51, 65, 85, 0.3); border: 1px solid var(--border); color: var(--text-primary); padding: 0.7rem; border-radius: 5px; font-family: 'Space Grotesk', sans-serif; font-size: 0.85rem;" />
+                </div>
+                <div class="search-results" id="search-results"></div>
+            </div>
+        </section>
+
+        <!-- Analytics View -->
+        <section class="view" id="analytics-view">
+            <div style="display: grid; gap: 1rem;">
+                <div class="card" style="grid-column: 1 / -1;">
+                    <h3>Vault Overview</h3>
+                    <div id="analytics-content">
+                        <p style="font-size: 0.8rem; color: var(--text-secondary);">Loading analytics...</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="card">
+                <h3>Vault Stats</h3>
+                <div class="card-item">
+                    <span>Entries</span>
+                    <span class="card-value" id="stat-entries">0</span>
+                </div>
+                <div class="card-item">
+                    <span>Provider</span>
+                    <span class="card-value" id="stat-provider">-</span>
+                </div>
+                <div class="card-item">
+                    <span>Model</span>
+                    <span class="card-value" id="stat-model">-</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Quick Access</h3>
+                <div class="card-item" style="cursor: pointer; border-bottom: none;">
+                    <span style="font-size: 0.7rem;">🔄 Reindex</span>
+                </div>
+                <div class="card-item" style="cursor: pointer; border-bottom: none;">
+                    <span style="font-size: 0.7rem;">📁 View All</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>About</h3>
+                <p style="font-size: 0.75rem; color: var(--text-secondary); line-height: 1.4;">Multi-LLM knowledge vault powered by RatVault. Built with Ollama, OpenAI, Anthropic & OpenRouter support.</p>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal">
+            <h2>⚙ RatVault Settings</h2>
+
+            <div class="setting-group">
+                <label>LLM Provider</label>
+                <select id="provider-select">
+                    <option value="ollama">Ollama (Local)</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="anthropic">Anthropic (Claude)</option>
+                    <option value="openrouter">OpenRouter</option>
+                </select>
+                <p style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.3rem;">Local inference with Ollama requires local setup</p>
+            </div>
+
+            <div class="setting-group">
+                <label>Model</label>
+                <select id="model-select">
+                    <option value="llama3.2">Llama 3.2 (Ollama)</option>
+                    <option value="mistral">Mistral (Ollama)</option>
+                    <option value="neural-chat">Neural Chat (Ollama)</option>
+                    <option value="gpt-4">GPT-4 (OpenAI)</option>
+                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo (OpenAI)</option>
+                    <option value="claude-opus">Claude 3.5 Sonnet (Anthropic)</option>
+                </select>
+            </div>
+
+            <div class="setting-group">
+                <label>API Key (if needed)</label>
+                <input type="password" id="api-key-input" placeholder="Optional - for OpenAI, Anthropic, etc." />
+            </div>
+
+            <div class="setting-group">
+                <label>Temperature</label>
+                <input type="range" id="temp-input" min="0" max="1" step="0.1" value="0.7" style="width: 100%; cursor: pointer;" />
+                <p style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.3rem;">Lower = more focused, Higher = more creative</p>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn btn-secondary btn-sm" id="close-settings">Cancel</button>
+                <button class="btn btn-primary btn-sm" id="save-settings">Save Settings</button>
+            </div>
         </div>
-      </div>
+    </div>
 
-      <!-- Timeline View -->
-      <div id="view-timeline" class="view">
-        <h1>📅 Timeline</h1>
-        <div id="timeline-container">
-          <p class="loading">Loading...</p>
-        </div>
-      </div>
+    <script>
+        class RatVault {
+            constructor() {
+                this.messages = [];
+                this.currentProvider = 'ollama';
+                this.currentModel = 'llama3.2';
+                this.init();
+                this.loadStats();
+            }
 
-      <!-- Gallery View -->
-      <div id="view-gallery" class="view">
-        <h1>🖼️ Media Gallery</h1>
+            init() {
+                document.querySelectorAll('.nav-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        if (e.target.id === 'settings-btn') {
+                            this.openSettings();
+                        } else if (e.target.dataset && e.target.dataset.view) {
+                            this.switchView(e.target.dataset.view);
+                        }
+                    });
+                });
 
-        <h2>Images</h2>
-        <div id="gallery-images" class="gallery">
-          <p class="loading">Loading...</p>
-        </div>
+                document.getElementById('chat-send').addEventListener('click', () => this.sendMessage());
+                document.getElementById('chat-input').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.sendMessage();
+                });
 
-        <h2>Videos</h2>
-        <div id="gallery-videos" class="gallery">
-          <p class="loading">Loading...</p>
-        </div>
-      </div>
+                document.getElementById('search-input').addEventListener('input', (e) => this.search(e.target.value));
 
-      <!-- Analytics View -->
-      <div id="view-analytics" class="view">
-        <h1>📊 Analytics</h1>
+                document.getElementById('close-settings').addEventListener('click', () => this.closeSettings());
+                document.getElementById('save-settings').addEventListener('click', () => this.saveSettings());
 
-        <h2>Overview</h2>
-        <div id="analytics-overview" style="padding: 15px; background-color: var(--bg-secondary); border: 1px solid var(--border-muted);"></div>
+                document.getElementById('logo-btn').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    this.switchView('chat');
+                });
 
-        <h2>Entries by Date</h2>
-        <div class="chart-container">
-          <canvas id="chart-entries" style="max-height: 300px;"></canvas>
-        </div>
+                this.loadSettings();
+            }
 
-        <h2>By Provider</h2>
-        <div class="chart-container">
-          <canvas id="chart-provider" style="max-height: 250px;"></canvas>
-        </div>
+            switchView(viewName) {
+                document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+                document.getElementById(`${viewName}-view`).classList.add('active');
 
-        <h2>Popular Tags</h2>
-        <div id="tags-cloud" class="cloud"></div>
-      </div>
+                document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+                const btn = document.querySelector(`[data-view="${viewName}"]`);
+                if (btn) btn.classList.add('active');
 
-      <!-- Settings View -->
-      <div id="view-settings" class="view">
-        <h1>⚙️ Settings</h1>
+                if (viewName === 'analytics') {
+                    this.loadAnalytics();
+                }
+            }
 
-        <h2>API Configuration</h2>
-        <div class="settings-grid">
-          <div class="settings-group">
-            <h3>Provider</h3>
-            <label for="provider-select">LLM Provider</label>
-            <select id="provider-select" onchange="onProviderChange()">
-              <option value="ollama">Ollama (Local)</option>
-              <option value="openai">OpenAI</option>
-              <option value="anthropic">Anthropic (Claude)</option>
-              <option value="openrouter">OpenRouter</option>
-            </select>
+            async sendMessage() {
+                const input = document.getElementById('chat-input');
+                const message = input.value.trim();
+                if (!message) return;
 
-            <label for="model-input">Model</label>
-            <input type="text" id="model-input" placeholder="e.g., gpt-4o, claude-3-haiku">
-          </div>
+                this.addMessage('user', message);
+                input.value = '';
 
-          <div class="settings-group">
-            <h3>API Keys</h3>
-            <label for="api-key-input">API Key</label>
-            <input type="password" id="api-key-input" placeholder="Your API key (masked)">
-            <button onclick="saveSettings()">Save Configuration</button>
-          </div>
-        </div>
+                try {
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message, history: this.messages })
+                    });
+                    const data = await response.json();
+                    if (data.reply) {
+                        this.addMessage('assistant', data.reply);
+                        this.messages.push({ role: 'user', content: message });
+                        this.messages.push({ role: 'assistant', content: data.reply });
+                    } else if (data.error) {
+                        this.addMessage('error', `Error: ${data.error}`);
+                    }
+                } catch (error) {
+                    this.addMessage('error', 'Connection error');
+                }
+            }
 
-        <div id="settings-status"></div>
-      </div>
-    </main>
-  </div>
+            addMessage(role, content) {
+                const messagesDiv = document.getElementById('chat-messages');
+                const messageEl = document.createElement('div');
+                messageEl.className = `message ${role}`;
+                const bubble = document.createElement('div');
+                bubble.className = 'message-bubble';
+                bubble.textContent = content;
+                messageEl.appendChild(bubble);
+                messagesDiv.appendChild(messageEl);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
 
-  <script src="/js/app.js" defer></script>
-  <script src="/js/search.js" defer></script>
-  <script src="/js/timeline.js" defer></script>
-  <script src="/js/gallery.js" defer></script>
-  <script src="/js/analytics.js" defer></script>
-  <script src="/js/settings.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js" defer></script>
+            async search(query) {
+                const resultsDiv = document.getElementById('search-results');
+                if (!query || query.length < 2) {
+                    resultsDiv.textContent = '';
+                    return;
+                }
 
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(err => {
-        console.log('Service Worker registration failed:', err);
-      });
-    }
-  </script>
+                try {
+                    const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+                    const results = await response.json();
 
-  <div id="chat-panel" class="chat-container"></div>
-  <link rel="stylesheet" href="css/chat.css">
-  <script src="components/Chat.js"></script>
+                    resultsDiv.textContent = '';
+
+                    if (results.length === 0) {
+                        const p = document.createElement('p');
+                        p.textContent = 'No results found';
+                        p.style.fontSize = '0.8rem';
+                        p.style.color = 'var(--text-secondary)';
+                        resultsDiv.appendChild(p);
+                        return;
+                    }
+
+                    results.forEach(r => {
+                        const item = document.createElement('div');
+                        item.className = 'result-item';
+
+                        const h4 = document.createElement('h4');
+                        h4.textContent = r.title || r.slug || 'Unknown';
+
+                        const p = document.createElement('p');
+                        p.textContent = r.summary || 'No summary';
+
+                        item.appendChild(h4);
+                        item.appendChild(p);
+                        resultsDiv.appendChild(item);
+                    });
+                } catch (error) {
+                    resultsDiv.textContent = '';
+                    const p = document.createElement('p');
+                    p.textContent = 'Search error';
+                    p.style.color = 'red';
+                    p.style.fontSize = '0.8rem';
+                    resultsDiv.appendChild(p);
+                }
+            }
+
+            async loadStats() {
+                try {
+                    const response = await fetch('/api/entries');
+                    const entries = await response.json();
+                    document.getElementById('stat-entries').textContent = entries.length;
+
+                    const provResponse = await fetch('/api/providers');
+                    const prov = await provResponse.json();
+                    document.getElementById('stat-provider').textContent = prov.provider.charAt(0).toUpperCase() + prov.provider.slice(1);
+                    document.getElementById('stat-model').textContent = prov.model.split('/')[0];
+                } catch (error) {
+                    console.error('Error loading stats', error);
+                }
+            }
+
+            async loadAnalytics() {
+                try {
+                    const response = await fetch('/api/analytics');
+                    const data = await response.json();
+
+                    const content = document.getElementById('analytics-content');
+                    content.textContent = '';
+
+                    const item = document.createElement('div');
+                    item.className = 'card-item';
+                    const span1 = document.createElement('span');
+                    span1.textContent = 'Total Entries';
+                    const span2 = document.createElement('span');
+                    span2.className = 'card-value';
+                    span2.textContent = data.total_entries;
+                    item.appendChild(span1);
+                    item.appendChild(span2);
+                    content.appendChild(item);
+
+                    if (data.providers && Object.keys(data.providers).length > 0) {
+                        const pDiv = document.createElement('div');
+                        pDiv.style.marginTop = '0.8rem';
+                        pDiv.style.fontSize = '0.75rem';
+                        pDiv.style.color = 'var(--text-secondary)';
+                        pDiv.textContent = 'Providers: ' + Object.entries(data.providers).map(([k,v]) => `${k} (${v})`).join(', ');
+                        content.appendChild(pDiv);
+                    }
+                } catch (error) {
+                    const content = document.getElementById('analytics-content');
+                    content.textContent = 'Error loading analytics';
+                    content.style.color = 'red';
+                }
+            }
+
+            openSettings() {
+                document.getElementById('settings-modal').classList.add('active');
+            }
+
+            closeSettings() {
+                document.getElementById('settings-modal').classList.remove('active');
+            }
+
+            loadSettings() {
+                const settings = JSON.parse(localStorage.getItem('ratvault-settings') || '{}');
+                if (settings.provider) {
+                    document.getElementById('provider-select').value = settings.provider;
+                    this.currentProvider = settings.provider;
+                }
+                if (settings.model) {
+                    document.getElementById('model-select').value = settings.model;
+                    this.currentModel = settings.model;
+                }
+                if (settings.temperature) {
+                    document.getElementById('temp-input').value = settings.temperature;
+                }
+            }
+
+            saveSettings() {
+                const settings = {
+                    provider: document.getElementById('provider-select').value,
+                    model: document.getElementById('model-select').value,
+                    temperature: document.getElementById('temp-input').value,
+                    apiKey: document.getElementById('api-key-input').value
+                };
+                localStorage.setItem('ratvault-settings', JSON.stringify(settings));
+                this.currentProvider = settings.provider;
+                this.currentModel = settings.model;
+                this.closeSettings();
+                this.loadStats();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            new RatVault();
+        });
+    </script>
 </body>
 </html>
