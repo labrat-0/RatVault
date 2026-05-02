@@ -8,6 +8,7 @@
     <title>RatVault Terminal</title>
     <link rel="icon" type="image/png" href="/favicon.ico">
     <link rel="manifest" href="/manifest.json">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         :root {
             --bg: #000000;
@@ -25,7 +26,7 @@
             background: var(--bg);
             color: var(--fg);
             font-family: var(--mono);
-            font-size: 16px;
+            font-size: 17px;
             line-height: 1.5;
             letter-spacing: 0.02em;
             overflow: hidden;
@@ -89,14 +90,19 @@
         main {
             flex: 1;
             display: grid;
-            grid-template-columns: 1fr 280px;
+            grid-template-columns: 1fr 320px;
             gap: 0;
             padding: 0;
-            border: 1px solid var(--border);
-            margin: 0;
+            border: 3px solid var(--border);
+            margin: 0 6px;
             background: var(--bg);
             overflow: hidden;
             min-height: 0;
+        }
+
+        /* Sidebar left mode */
+        main.sidebar-left {
+            grid-template-columns: 320px 1fr;
         }
 
         /* View container */
@@ -105,6 +111,11 @@
             flex-direction: column;
             border-right: 1px solid var(--border);
             overflow: hidden;
+        }
+
+        main.sidebar-left .view-container {
+            border-right: none;
+            border-left: 1px solid var(--border);
         }
 
         .view {
@@ -177,18 +188,19 @@
         }
 
         .message {
-            padding: 6px 8px;
-            border-left: 1px solid var(--dim2);
+            padding: 8px 10px;
+            border-left: 2px solid var(--dim2);
             display: flex;
             gap: 8px;
             align-items: flex-start;
-            font-size: 14px;
+            font-size: 15px;
             line-height: 1.4;
+            border-radius: 3px;
         }
 
         .message.user {
-            background: rgba(255, 255, 255, 0.05);
-            border-left-color: var(--dim);
+            background: rgba(255, 255, 255, 0.08);
+            border-left-color: rgba(0, 255, 65, 0.3);
         }
 
         .message.assistant {
@@ -233,9 +245,10 @@
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid var(--dim2);
             color: var(--fg);
-            padding: 6px 8px;
+            padding: 8px 10px;
             font-family: var(--mono);
-            font-size: 12px;
+            font-size: 14px;
+            height: 40px;
             transition: border-color 0.1s;
         }
 
@@ -246,21 +259,22 @@
         }
 
         #chat-send {
-            background: var(--fg);
-            color: var(--bg);
-            border: none;
-            padding: 6px 12px;
+            background: rgba(0, 255, 65, 0.25);
+            color: var(--fg);
+            border: 1px solid rgba(0, 255, 65, 0.3);
+            padding: 8px 14px;
             font-family: var(--mono);
             font-weight: 700;
             font-size: 13px;
             cursor: pointer;
             letter-spacing: 0.1em;
             text-transform: uppercase;
-            transition: opacity 0.1s;
+            transition: opacity 0.2s;
         }
 
         #chat-send:hover {
-            opacity: 0.8;
+            opacity: 0.9;
+            background: rgba(0, 255, 65, 0.35);
         }
 
         /* Search view */
@@ -521,7 +535,7 @@
             display: grid;
             grid-template-columns: auto auto 1fr auto auto;
             gap: 0;
-            height: 28px;
+            height: 32px;
             font-size: 13px;
             letter-spacing: 0.05em;
         }
@@ -631,31 +645,44 @@
                 </div>
             </div>
 
-            <!-- Document View -->
+            <!-- Document View (Split Editor) -->
             <div class="view" id="document-view">
                 <div style="display: flex; flex-direction: column; height: 100%; overflow: hidden;">
                     <!-- Document Header -->
                     <div style="padding: 12px 16px; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.3);">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                             <h1 id="doc-title" style="margin: 0; font-size: 20px; color: var(--fg);">Loading...</h1>
-                            <button id="doc-back" style="background: none; border: 1px solid var(--border); color: var(--fg); cursor: pointer; padding: 4px 8px; font-family: var(--mono); font-size: 12px;">← Back</button>
+                            <div style="display: flex; gap: 4px;">
+                                <button id="doc-save" style="padding: 6px 12px; background: rgba(0,255,65,0.15); border: 1px solid rgba(0,255,65,0.3); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 12px; text-transform: uppercase; display: none;">💾 Save</button>
+                                <button id="doc-back" style="background: none; border: 1px solid var(--border); color: var(--fg); cursor: pointer; padding: 4px 8px; font-family: var(--mono); font-size: 12px;">← Back</button>
+                            </div>
                         </div>
-                        <div style="display: flex; gap: 16px; font-size: 13px; color: var(--dim);">
-                            <span id="doc-created"></span>
-                            <span id="doc-tags"></span>
-                        </div>
-                    </div>
-                    
-                    <!-- Document Content -->
-                    <div style="flex: 1; overflow-y: auto; padding: 16px;">
-                        <div id="doc-content" style="color: var(--fg); line-height: 1.8; word-break: break-word;">
-                            <!-- Content renders here -->
+                        <div style="display: flex; gap: 8px; font-size: 12px;">
+                            <button id="doc-mode-edit" class="doc-mode-btn active" style="padding: 4px 8px; background: var(--fg); color: var(--bg); border: 1px solid var(--fg); cursor: pointer; font-family: var(--mono); font-size: 11px; text-transform: uppercase;">Edit</button>
+                            <button id="doc-mode-preview" class="doc-mode-btn" style="padding: 4px 8px; background: transparent; color: var(--fg); border: 1px solid var(--dim2); cursor: pointer; font-family: var(--mono); font-size: 11px; text-transform: uppercase;">Preview</button>
+                            <button id="doc-mode-split" class="doc-mode-btn" style="padding: 4px 8px; background: transparent; color: var(--fg); border: 1px solid var(--dim2); cursor: pointer; font-family: var(--mono); font-size: 11px; text-transform: uppercase;">Split</button>
                         </div>
                     </div>
-                    
-                    <!-- Document Footer -->
-                    <div style="padding: 12px 16px; border-top: 1px solid var(--border); background: rgba(0,0,0,0.3); display: flex; gap: 8px;">
-                        <button id="doc-edit" style="flex: 1; padding: 6px 12px; background: rgba(0,255,65,0.15); border: 1px solid rgba(0,255,65,0.3); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 13px; text-transform: uppercase;">✎ Edit</button>
+
+                    <!-- Toolbar -->
+                    <div id="doc-toolbar" style="padding: 8px 12px; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.2); display: flex; gap: 4px; overflow-x: auto; flex-wrap: wrap;">
+                        <button id="doc-bold" title="Bold" style="padding: 4px 8px; background: transparent; border: 1px solid var(--dim2); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 12px; font-weight: 700;">B</button>
+                        <button id="doc-italic" title="Italic" style="padding: 4px 8px; background: transparent; border: 1px solid var(--dim2); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 12px; font-style: italic;">I</button>
+                        <button id="doc-link" title="Link" style="padding: 4px 8px; background: transparent; border: 1px solid var(--dim2); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 11px;">🔗</button>
+                        <button id="doc-image" title="Image" style="padding: 4px 8px; background: transparent; border: 1px solid var(--dim2); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 11px;">🖼</button>
+                        <button id="doc-video" title="Video" style="padding: 4px 8px; background: transparent; border: 1px solid var(--dim2); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 11px;">🎬</button>
+                        <span style="border-right: 1px solid var(--dim2); margin: 0 2px;"></span>
+                        <button id="doc-h1" title="Heading 1" style="padding: 4px 8px; background: transparent; border: 1px solid var(--dim2); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 11px;">H1</button>
+                        <button id="doc-h2" title="Heading 2" style="padding: 4px 8px; background: transparent; border: 1px solid var(--dim2); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 11px;">H2</button>
+                        <button id="doc-code" title="Code" style="padding: 4px 8px; background: transparent; border: 1px solid var(--dim2); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 11px;">&lt;/&gt;</button>
+                    </div>
+
+                    <!-- Editor Panes -->
+                    <div style="flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 0; overflow: hidden;" id="doc-panes">
+                        <!-- Editor Pane -->
+                        <textarea id="doc-editor" style="flex: 1; padding: 12px; background: var(--bg); color: var(--fg); border: none; border-right: 1px solid var(--border); font-family: var(--mono); font-size: 14px; resize: none; overflow-y: auto; white-space: pre; word-wrap: normal;"></textarea>
+                        <!-- Preview Pane -->
+                        <div id="doc-preview" style="flex: 1; padding: 12px; background: var(--bg); color: var(--fg); overflow-y: auto; line-height: 1.8; border-left: 1px solid var(--border);"></div>
                     </div>
                 </div>
             </div>
@@ -666,8 +693,16 @@
 
         <!-- Sidebar -->
         <div class="sidebar">
-            <!-- Profile Media (Optional) -->
-            <div class="sidebar-card" style="padding:0; overflow:hidden; border-bottom:1px solid var(--border); height: 80px; flex-shrink: 0; display: none;" id="profile-container">
+            <!-- Local Time (New) -->
+            <div class="sidebar-card">
+                <div style="text-align: center; padding: 8px 0;">
+                    <div id="local-time" style="font-size: 18px; font-weight: 700; color: rgba(0,255,65,0.6); margin-bottom: 4px; font-family: 'Courier New', monospace;">--:--:--</div>
+                    <div id="local-date" style="font-size: 12px; color: var(--dim);">...</div>
+                </div>
+            </div>
+
+            <!-- Profile Media -->
+            <div class="sidebar-card" style="padding:0; overflow:hidden; border-bottom:1px solid var(--border); height: 160px; flex-shrink: 0;" id="profile-container">
                 <!-- Profile media container -->
                 <div id="profile-media" style="width:100%; height:100%;">
                     <video
@@ -680,11 +715,11 @@
                 </div>
             </div>
 
-            <!-- Profile Upload Button -->
+            <!-- Profile Controls -->
             <div class="sidebar-card" style="padding: 4px; border-bottom: 1px solid var(--border); flex-shrink: 0;">
-                <div style="display: flex; gap: 4px; align-items: center;">
+                <div style="display: flex; gap: 4px; margin-bottom: 4px;">
                     <label for="profile-upload" style="flex: 1; display: block; padding: 6px; background: none; border: 1px solid var(--border); color: var(--fg); text-align: center; cursor: pointer; font-size: 13px; border-radius: 2px;" title="Upload media">📷 Media</label>
-                    <button id="toggle-profile" style="padding: 6px 8px; background: none; border: 1px solid var(--border); color: var(--dim); cursor: pointer; font-size: 11px;" title="Toggle media display">≡</button>
+                    <button id="toggle-sidebar-pos" style="flex: 1; padding: 6px; background: none; border: 1px solid var(--border); color: var(--fg); cursor: pointer; font-size: 11px; text-transform: uppercase;" title="Toggle sidebar position">⬅➡</button>
                 </div>
                 <input type="file" id="profile-upload" accept="image/*,video/*,.gif" style="display: none;">
             </div>
@@ -778,6 +813,8 @@
         class RatVault {
             constructor() {
                 this.messages = [];
+                this.currentDocSlug = null;
+                this.currentDocMode = 'split';
                 this.init();
                 this.loadStats();
             }
@@ -800,7 +837,6 @@
                     if (e.key === 'Enter') this.sendMessage();
                 });
 
-
                 // Settings
                 document.getElementById('close-settings').addEventListener('click', () => this.closeSettings());
                 document.getElementById('save-settings').addEventListener('click', () => this.saveSettings());
@@ -809,11 +845,69 @@
                 // Profile Upload
                 this.initProfileUpload();
 
+                // Clock
+                this.initClock();
+
+                // Sidebar position toggle
+                document.getElementById('toggle-sidebar-pos').addEventListener('click', () => this.toggleSidebarPosition());
+
                 // Vault View
                 this.initVaultView();
                 this.initDocumentView();
 
                 this.loadSettings();
+                this.loadProfileImage();
+                this.restoreSidebarPosition();
+            }
+
+            initClock() {
+                const updateTime = () => {
+                    const now = new Date();
+                    const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
+                    const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+                    document.getElementById('local-time').textContent = timeStr;
+                    document.getElementById('local-date').textContent = dateStr;
+                };
+                updateTime();
+                setInterval(updateTime, 1000);
+            }
+
+            toggleSidebarPosition() {
+                const main = document.querySelector('main');
+                const currentPos = localStorage.getItem('ratvault-sidebar-pos') || 'right';
+                const newPos = currentPos === 'right' ? 'left' : 'right';
+                localStorage.setItem('ratvault-sidebar-pos', newPos);
+
+                if (newPos === 'left') {
+                    main.classList.add('sidebar-left');
+                } else {
+                    main.classList.remove('sidebar-left');
+                }
+            }
+
+            restoreSidebarPosition() {
+                const pos = localStorage.getItem('ratvault-sidebar-pos') || 'right';
+                const main = document.querySelector('main');
+                if (pos === 'left') {
+                    main.classList.add('sidebar-left');
+                }
+            }
+
+            async loadProfileImage() {
+                try {
+                    const res = await fetch('/api/profile/current');
+                    const data = await res.json();
+                    if (data.url) {
+                        const profileMedia = document.getElementById('profile-media');
+                        profileMedia.textContent = '';
+                        const img = document.createElement('img');
+                        img.src = data.url;
+                        img.style.cssText = 'width:100%; height:100%; object-fit:cover; display:block; filter:grayscale(1) contrast(1.1);';
+                        profileMedia.appendChild(img);
+                    }
+                } catch (e) {
+                    // Fallback to default video
+                }
             }
 
             initVaultView() {
@@ -836,10 +930,152 @@
             }
 
             initDocumentView() {
-                document.getElementById('doc-back').addEventListener('click', () => this.switchView('vault'));
-                document.getElementById('doc-edit').addEventListener('click', () => {
-                    alert('Edit functionality coming soon');
+                const editor = document.getElementById('doc-editor');
+                const preview = document.getElementById('doc-preview');
+                const saveBtn = document.getElementById('doc-save');
+                const backBtn = document.getElementById('doc-back');
+
+                // Mode buttons
+                document.getElementById('doc-mode-edit').addEventListener('click', () => this.switchDocMode('edit'));
+                document.getElementById('doc-mode-preview').addEventListener('click', () => this.switchDocMode('preview'));
+                document.getElementById('doc-mode-split').addEventListener('click', () => this.switchDocMode('split'));
+
+                // Toolbar buttons
+                document.getElementById('doc-bold').addEventListener('click', () => this.insertMarkdown('bold'));
+                document.getElementById('doc-italic').addEventListener('click', () => this.insertMarkdown('italic'));
+                document.getElementById('doc-link').addEventListener('click', () => this.insertMarkdown('link'));
+                document.getElementById('doc-image').addEventListener('click', () => this.insertMarkdown('image'));
+                document.getElementById('doc-video').addEventListener('click', () => this.insertMarkdown('video'));
+                document.getElementById('doc-h1').addEventListener('click', () => this.insertMarkdown('h1'));
+                document.getElementById('doc-h2').addEventListener('click', () => this.insertMarkdown('h2'));
+                document.getElementById('doc-code').addEventListener('click', () => this.insertMarkdown('code'));
+
+                // Editor input - live preview
+                editor.addEventListener('input', () => {
+                    if (preview) {
+                        preview.innerHTML = '';
+                        const div = document.createElement('div');
+                        div.innerHTML = marked.parse(editor.value);
+                        preview.appendChild(div);
+                    }
                 });
+
+                // Save button
+                saveBtn.addEventListener('click', () => this.saveDocument());
+                backBtn.addEventListener('click', () => this.switchView('vault'));
+
+                this.currentDocMode = 'split';
+            }
+
+            switchDocMode(mode) {
+                const panes = document.getElementById('doc-panes');
+                const editor = document.getElementById('doc-editor');
+                const preview = document.getElementById('doc-preview');
+                const buttons = document.querySelectorAll('.doc-mode-btn');
+
+                buttons.forEach(b => {
+                    b.style.background = 'transparent';
+                    b.style.borderColor = 'var(--dim2)';
+                    b.style.color = 'var(--fg)';
+                });
+
+                if (mode === 'edit') {
+                    panes.style.gridTemplateColumns = '1fr';
+                    preview.style.display = 'none';
+                    editor.style.display = 'block';
+                    document.getElementById('doc-mode-edit').style.background = 'var(--fg)';
+                    document.getElementById('doc-mode-edit').style.color = 'var(--bg)';
+                    document.getElementById('doc-mode-edit').style.borderColor = 'var(--fg)';
+                } else if (mode === 'preview') {
+                    panes.style.gridTemplateColumns = '1fr';
+                    editor.style.display = 'none';
+                    preview.style.display = 'block';
+                    document.getElementById('doc-mode-preview').style.background = 'var(--fg)';
+                    document.getElementById('doc-mode-preview').style.color = 'var(--bg)';
+                    document.getElementById('doc-mode-preview').style.borderColor = 'var(--fg)';
+                } else {
+                    panes.style.gridTemplateColumns = '1fr 1fr';
+                    editor.style.display = 'block';
+                    preview.style.display = 'block';
+                    document.getElementById('doc-mode-split').style.background = 'var(--fg)';
+                    document.getElementById('doc-mode-split').style.color = 'var(--bg)';
+                    document.getElementById('doc-mode-split').style.borderColor = 'var(--fg)';
+                }
+
+                this.currentDocMode = mode;
+            }
+
+            insertMarkdown(type) {
+                const editor = document.getElementById('doc-editor');
+                const start = editor.selectionStart;
+                const end = editor.selectionEnd;
+                const selected = editor.value.substring(start, end) || 'text';
+                let insert = '';
+
+                switch(type) {
+                    case 'bold':
+                        insert = `**${selected}**`;
+                        break;
+                    case 'italic':
+                        insert = `*${selected}*`;
+                        break;
+                    case 'link':
+                        const url = prompt('Enter URL:');
+                        insert = `[${selected}](${url || 'https://example.com'})`;
+                        break;
+                    case 'image':
+                        const imgUrl = prompt('Enter image URL:');
+                        insert = `![${selected}](${imgUrl || '/assets/image.jpg'})`;
+                        break;
+                    case 'video':
+                        const vidUrl = prompt('Enter video URL:');
+                        insert = `<video controls style="width:100%"><source src="${vidUrl || '/assets/video.mp4'}" type="video/mp4"></video>`;
+                        break;
+                    case 'h1':
+                        insert = `# ${selected}`;
+                        break;
+                    case 'h2':
+                        insert = `## ${selected}`;
+                        break;
+                    case 'code':
+                        insert = `` ` ``+ selected + `` ` ``;
+                        break;
+                }
+
+                const newText = editor.value.substring(0, start) + insert + editor.value.substring(end);
+                editor.value = newText;
+                editor.dispatchEvent(new Event('input'));
+                editor.focus();
+            }
+
+            async saveDocument() {
+                const editor = document.getElementById('doc-editor');
+                const slug = this.currentDocSlug;
+
+                if (!slug) {
+                    alert('No document slug');
+                    return;
+                }
+
+                try {
+                    const res = await fetch(`/api/entries/${slug}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content: editor.value })
+                    });
+
+                    if (res.ok) {
+                        const btn = document.getElementById('doc-save');
+                        btn.textContent = '✓ Saved';
+                        setTimeout(() => {
+                            btn.textContent = '💾 Save';
+                        }, 2000);
+                    } else {
+                        alert('Save failed');
+                    }
+                } catch (e) {
+                    alert('Save error: ' + e.message);
+                }
             }
 
             switchView(viewName) {
@@ -847,9 +1083,15 @@
                 document.getElementById(`${viewName}-view`).classList.add('active');
 
                 document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-                document.querySelector(`[data-view="${viewName}"]`).classList.add('active');
+                const btn = document.querySelector(`[data-view="${viewName}"]`);
+                if (btn) {
+                    btn.classList.add('active');
+                }
 
                 if (viewName === 'vault') this.loadVaultDocuments();
+                if (viewName === 'document') {
+                    this.switchDocMode('split');
+                }
             }
 
             async sendMessage() {
@@ -1183,35 +1425,39 @@
             createNewDocument() {
                 const title = prompt('Document title:');
                 if (!title) return;
-                
+
                 const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-                const content = `---
-title: "${title}"
-slug: "${slug}"
-created: "${new Date().toISOString().split('T')[0]}"
-tags: []
----
+                const initialContent = `# ${title}\n\n`;
 
-# ${title}
+                this.createNewDocumentOnServer(title, slug, initialContent);
+            }
 
-`;
-                
-                // Create temporary entry for preview
-                const entry = {
-                    title,
-                    slug,
-                    created: new Date().toISOString().split('T')[0],
-                    tags: [],
-                    body: content
-                };
-                
-                document.getElementById('doc-title').textContent = entry.title;
-                document.getElementById('doc-created').textContent = `Created: ${new Date(entry.created).toLocaleDateString()}`;
-                document.getElementById('doc-tags').textContent = '';
-                document.getElementById('doc-content').textContent = entry.body;
-                
-                this.switchView('document');
-                alert('Document created! You can now edit and save it.');
+            async createNewDocumentOnServer(title, slug, content) {
+                try {
+                    const res = await fetch('/api/entries', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            title,
+                            slug,
+                            content
+                        })
+                    });
+
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.currentDocSlug = slug;
+                        document.getElementById('doc-title').textContent = title;
+                        document.getElementById('doc-editor').value = content;
+                        document.getElementById('doc-save').style.display = 'block';
+                        document.getElementById('doc-editor').dispatchEvent(new Event('input'));
+                        this.switchView('document');
+                    } else {
+                        alert('Failed to create document');
+                    }
+                } catch (e) {
+                    alert('Error: ' + e.message);
+                }
             }
 
             async openDocument(slug) {
@@ -1219,11 +1465,16 @@ tags: []
                     const res = await fetch(`/api/entries/${slug}`);
                     const entry = await res.json();
 
+                    // Store slug for saving
+                    this.currentDocSlug = slug;
+
                     // Populate document view
                     document.getElementById('doc-title').textContent = entry.title || 'Untitled';
-                    document.getElementById('doc-created').textContent = `Created: ${new Date(entry.created).toLocaleDateString()}`;
-                    document.getElementById('doc-tags').textContent = entry.tags ? entry.tags.join(', ') : '';
-                    document.getElementById('doc-content').textContent = entry.body || '';
+                    document.getElementById('doc-editor').value = entry.body || '';
+                    document.getElementById('doc-save').style.display = 'block';
+
+                    // Trigger preview update
+                    document.getElementById('doc-editor').dispatchEvent(new Event('input'));
 
                     // Switch to document view
                     this.switchView('document');
@@ -1262,7 +1513,7 @@ tags: []
                             const data = await res.json();
 
                             // Replace media content
-                            profileMedia.innerHTML = '';
+                            profileMedia.textContent = '';
 
                             if (file.type.startsWith('image/')) {
                                 const img = document.createElement('img');

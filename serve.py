@@ -387,6 +387,111 @@ from fastapi import UploadFile, File
 from fastapi.responses import FileResponse as FastAPIFileResponse
 
 
+class DocumentRequest(BaseModel):
+    title: str
+    slug: str
+    content: str
+
+
+class DocumentUpdateRequest(BaseModel):
+    content: str
+
+
+@app.post("/api/entries")
+async def create_document(req: DocumentRequest):
+    """Create a new document in Notes/."""
+    try:
+        notes_dir = Path("Notes")
+        notes_dir.mkdir(parents=True, exist_ok=True)
+
+        slug = req.slug.lower().replace(" ", "-").replace("/", "-")
+        filepath = notes_dir / f"{slug}.md"
+
+        if filepath.exists():
+            raise HTTPException(status_code=409, detail="Document already exists")
+
+        # Build frontmatter
+        now = datetime.now().isoformat().split('T')[0]
+        frontmatter = f"""---
+title: "{req.title}"
+slug: "{slug}"
+created: "{now}"
+tags: []
+---
+
+{req.content}"""
+
+        filepath.write_text(frontmatter, encoding="utf-8")
+
+        return {
+            "success": True,
+            "slug": slug,
+            "title": req.title,
+            "created": now
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/entries/{slug}")
+async def update_document(slug: str, req: DocumentUpdateRequest):
+    """Update an existing document."""
+    try:
+        notes_dir = Path("Notes")
+        filepath = notes_dir / f"{slug}.md"
+
+        if not filepath.exists():
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        # Parse existing frontmatter
+        existing = filepath.read_text(encoding="utf-8")
+        entry = parse_frontmatter(existing)
+
+        if not entry:
+            raise HTTPException(status_code=400, detail="Invalid document format")
+
+        # Rebuild with updated content
+        frontmatter = f"""---
+title: "{entry.get('title', 'Untitled')}"
+slug: "{entry.get('slug', slug)}"
+created: "{entry.get('created', '')}"
+tags: {entry.get('tags', [])}
+"""
+        if 'related' in entry:
+            frontmatter += f'related: {entry["related"]}\n'
+        frontmatter += f"---\n\n{req.content}"
+
+        filepath.write_text(frontmatter, encoding="utf-8")
+
+        return {
+            "success": True,
+            "slug": slug,
+            "updated_at": datetime.now().isoformat()
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/profile/current")
+async def get_current_profile():
+    """Get the most recent profile image/video."""
+    try:
+        assets_dir = Path("dashboard/assets")
+        profile_files = sorted(assets_dir.glob("profile-*"), key=lambda p: p.stat().st_mtime, reverse=True)
+
+        if profile_files:
+            latest = profile_files[0]
+            return {
+                "url": f"/assets/{latest.name}",
+                "filename": latest.name
+            }
+        return {"url": None, "filename": None}
+    except Exception as e:
+        return {"url": None, "filename": None}
+
+
 @app.post("/api/profile")
 async def upload_profile(file: UploadFile = File(...)):
     """Upload a new profile image or video."""
