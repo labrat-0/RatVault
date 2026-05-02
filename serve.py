@@ -437,7 +437,34 @@ created: {datetime.now().isoformat()}
         raise HTTPException(status_code=500, detail=str(e))
 
 
+from fastapi import UploadFile, File
 from fastapi.responses import FileResponse as FastAPIFileResponse
+
+
+@app.post("/api/profile")
+async def upload_profile(file: UploadFile = File(...)):
+    """Upload a new profile image or video."""
+    try:
+        assets_dir = Path("dashboard/assets")
+        assets_dir.mkdir(parents=True, exist_ok=True)
+
+        # Save with timestamp to ensure uniqueness
+        timestamp = int(datetime.now().timestamp() * 1000)
+        ext = Path(file.filename).suffix
+        new_filename = f"profile-{timestamp}{ext}"
+        filepath = assets_dir / new_filename
+
+        # Save the file
+        content = await file.read()
+        filepath.write_bytes(content)
+
+        return {
+            "success": True,
+            "url": f"/assets/{new_filename}",
+            "filename": new_filename
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/{file_path:path}")
 async def serve_files(file_path: str):
