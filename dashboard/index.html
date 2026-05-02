@@ -627,13 +627,42 @@
                         <button id="vault-refresh" style="padding: 6px 12px; background: rgba(0,255,65,0.15); border: 1px solid rgba(0,255,65,0.3); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 12px;">Refresh</button>
                     </div>
                     <div id="vault-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;"></div>
+            <!-- Document View -->
+            <div class="view" id="document-view">
+                <div style="display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+                    <!-- Document Header -->
+                    <div style="padding: 12px 16px; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.3);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <h1 id="doc-title" style="margin: 0; font-size: 20px; color: var(--fg);">Loading...</h1>
+                            <button id="doc-back" style="background: none; border: 1px solid var(--border); color: var(--fg); cursor: pointer; padding: 4px 8px; font-family: var(--mono); font-size: 12px;">← Back</button>
+                        </div>
+                        <div style="display: flex; gap: 16px; font-size: 11px; color: var(--dim);">
+                            <span id="doc-created"></span>
+                            <span id="doc-tags"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Document Content -->
+                    <div style="flex: 1; overflow-y: auto; padding: 16px;">
+                        <div id="doc-content" style="color: var(--fg); line-height: 1.8; word-break: break-word;">
+                            <!-- Content renders here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Document Footer -->
+                    <div style="padding: 12px 16px; border-top: 1px solid var(--border); background: rgba(0,0,0,0.3); display: flex; gap: 8px;">
+                        <button id="doc-edit" style="flex: 1; padding: 6px 12px; background: rgba(0,255,65,0.15); border: 1px solid rgba(0,255,65,0.3); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 11px; text-transform: uppercase;">✎ Edit</button>
+                    </div>
+                </div>
+            </div>
+
                 </div>
             </div>
         </div>
 
         <!-- Sidebar -->
         <div class="sidebar">
-            <div class="sidebar-card" style="padding:0; overflow:hidden; border-bottom:1px solid var(--border); aspect-ratio: 1/1; flex-shrink: 0;">
+            <div class="sidebar-card" style="padding:0; overflow:hidden; border-bottom:1px solid var(--border); height: 160px; flex-shrink: 0;">
                 <!-- Profile media container -->
                 <div id="profile-media" style="width:100%; height:100%;">
                     <video
@@ -770,6 +799,7 @@
 
                 // Vault View
                 this.initVaultView();
+                this.initDocumentView();
 
                 this.loadSettings();
             }
@@ -788,6 +818,13 @@
                         const text = item.textContent.toLowerCase();
                         item.style.display = text.includes(query) ? '' : 'none';
                     });
+                });
+            }
+
+            initDocumentView() {
+                document.getElementById('doc-back').addEventListener('click', () => this.switchView('vault'));
+                document.getElementById('doc-edit').addEventListener('click', () => {
+                    alert('Edit functionality coming soon');
                 });
             }
 
@@ -1068,27 +1105,14 @@
                     const res = await fetch(`/api/entries/${slug}`);
                     const entry = await res.json();
 
-                    // Show in a modal or switch view
-                    const modal = document.createElement('div');
-                    modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 2000;';
-                    modal.innerHTML = `
-                        <div style="background: var(--bg); border: 1px solid var(--border); padding: 16px; max-width: 90%; max-height: 90%; overflow-y: auto; width: 600px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                                <h2 style="margin: 0; color: var(--fg);">${entry.title || 'Untitled'}</h2>
-                                <button style="background: none; border: 1px solid var(--border); color: var(--fg); cursor: pointer; padding: 4px 8px; font-family: var(--mono);">✕</button>
-                            </div>
-                            <div style="font-size: 12px; color: var(--dim); margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
-                                Created: ${new Date(entry.created).toLocaleDateString()}
-                            </div>
-                            <div style="color: var(--fg); line-height: 1.6;">${entry.body}</div>
-                        </div>
-                    `;
+                    // Populate document view
+                    document.getElementById('doc-title').textContent = entry.title || 'Untitled';
+                    document.getElementById('doc-created').textContent = `Created: ${new Date(entry.created).toLocaleDateString()}`;
+                    document.getElementById('doc-tags').textContent = entry.tags ? entry.tags.join(', ') : '';
+                    document.getElementById('doc-content').textContent = entry.body || '';
 
-                    document.body.appendChild(modal);
-                    modal.querySelector('button').addEventListener('click', () => modal.remove());
-                    modal.addEventListener('click', (e) => {
-                        if (e.target === modal) modal.remove();
-                    });
+                    // Switch to document view
+                    this.switchView('document');
                 } catch (e) {
                     alert('Error opening document: ' + e.message);
                 }
