@@ -9,6 +9,7 @@
     <link rel="icon" type="image/png" href="/favicon.ico">
     <link rel="manifest" href="/manifest.json">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <style>
         :root {
             --bg: #0a0a0a;
@@ -18,9 +19,39 @@
             --dim2: #333;
             --border: #222;
             --accent: #00ff41;
+            --accent-r: 0;
+            --accent-g: 255;
+            --accent-b: 65;
             --accent-dim: rgba(0,255,65,0.15);
+            --accent-glow: rgba(0,255,65,0.35);
             --danger: #ff4444;
             --mono: "JetBrains Mono","Fira Code","Cascadia Code","Source Code Pro","Menlo","Consolas",ui-monospace,monospace;
+        }
+
+        /* Theme variants — switched by [data-theme] attribute on <html> */
+        html[data-theme="cyan"] {
+            --accent: #00f0ff; --accent-r: 0; --accent-g: 240; --accent-b: 255;
+            --accent-dim: rgba(0,240,255,0.15); --accent-glow: rgba(0,240,255,0.35);
+        }
+        html[data-theme="blue"] {
+            --accent: #4dccff; --accent-r: 77; --accent-g: 204; --accent-b: 255;
+            --accent-dim: rgba(77,204,255,0.15); --accent-glow: rgba(77,204,255,0.35);
+        }
+        html[data-theme="yellow"] {
+            --accent: #ffd700; --accent-r: 255; --accent-g: 215; --accent-b: 0;
+            --accent-dim: rgba(255,215,0,0.15); --accent-glow: rgba(255,215,0,0.35);
+        }
+        html[data-theme="red"] {
+            --accent: #ff4d4d; --accent-r: 255; --accent-g: 77; --accent-b: 77;
+            --accent-dim: rgba(255,77,77,0.15); --accent-glow: rgba(255,77,77,0.35);
+        }
+        html[data-theme="pink"] {
+            --accent: #ff66c4; --accent-r: 255; --accent-g: 102; --accent-b: 196;
+            --accent-dim: rgba(255,102,196,0.15); --accent-glow: rgba(255,102,196,0.35);
+        }
+        html[data-theme="white"] {
+            --accent: #ffffff; --accent-r: 255; --accent-g: 255; --accent-b: 255;
+            --accent-dim: rgba(255,255,255,0.12); --accent-glow: rgba(255,255,255,0.3);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -128,6 +159,7 @@
         /* ===== CHAT VIEW (Grok-inspired) ===== */
         #chat-view {
             background: var(--bg);
+            position: relative;
         }
 
         .chat-messages {
@@ -136,7 +168,12 @@
             padding: 24px 16% 24px 16%;
             display: flex;
             flex-direction: column;
-            gap: 18px;
+            gap: 20px;
+            /* Subtle dot-matrix grid background */
+            background-image:
+                radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px);
+            background-size: 18px 18px;
+            background-position: 0 0;
         }
 
         @media (max-width: 1100px) {
@@ -171,7 +208,7 @@
         .msg.user .msg-avatar {
             background: var(--accent-dim);
             color: var(--accent);
-            border-color: rgba(0,255,65,0.4);
+            border-color: rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.4);
         }
 
         .msg.assistant .msg-avatar {
@@ -188,15 +225,15 @@
         .msg-body {
             flex: 1;
             min-width: 0;
-            padding-top: 4px;
+            padding-top: 2px;
         }
 
         .msg-author {
-            font-size: 11px;
+            font-size: 10px;
             color: var(--dim);
-            letter-spacing: 0.1em;
+            letter-spacing: 0.12em;
             text-transform: uppercase;
-            margin-bottom: 6px;
+            margin-bottom: 4px;
             font-weight: 700;
         }
 
@@ -206,6 +243,131 @@
             font-size: 14px;
             line-height: 1.6;
             word-wrap: break-word;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid var(--dim2);
+            background: var(--bg2);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            position: relative;
+        }
+
+        .msg.user .msg-content {
+            background: linear-gradient(135deg,
+                rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.08),
+                rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.02));
+            border-color: rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.3);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4),
+                        inset 0 0 0 1px rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.05);
+        }
+
+        .msg.assistant .msg-content {
+            background: var(--bg2);
+            border-color: var(--dim2);
+        }
+
+        .msg.error .msg-content {
+            background: rgba(255,68,68,0.06);
+            border-color: rgba(255,68,68,0.4);
+        }
+
+        /* Speech-bubble tail */
+        .msg-content::before {
+            content: '';
+            position: absolute;
+            left: -7px;
+            top: 12px;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 6px 7px 6px 0;
+            border-color: transparent var(--dim2) transparent transparent;
+        }
+        .msg-content::after {
+            content: '';
+            position: absolute;
+            left: -5px;
+            top: 13px;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 5px 6px 5px 0;
+            border-color: transparent var(--bg2) transparent transparent;
+        }
+        .msg.user .msg-content::after {
+            border-right-color: rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.05);
+        }
+
+        /* Loading dots */
+        .typing-indicator {
+            display: inline-flex;
+            gap: 4px;
+            align-items: center;
+            padding: 6px 0;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+            opacity: 0.4;
+            animation: typingPulse 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typingPulse {
+            0%, 60%, 100% { opacity: 0.4; transform: scale(1); }
+            30% { opacity: 1; transform: scale(1.2); }
+        }
+
+        /* File attachments preview in chat */
+        .chat-attachments {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+            padding: 8px;
+            border-top: 1px solid var(--dim2);
+        }
+
+        .chat-attachment {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--bg);
+            border: 1px solid var(--dim2);
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 11px;
+            color: var(--dim);
+        }
+
+        .chat-attachment .remove-att {
+            background: none;
+            border: none;
+            color: var(--dim);
+            cursor: pointer;
+            padding: 0 2px;
+            font-size: 12px;
+        }
+
+        .chat-attachment .remove-att:hover { color: var(--danger); }
+
+        .chat-attachment img {
+            width: 24px;
+            height: 24px;
+            object-fit: cover;
+            border-radius: 2px;
+        }
+
+        .msg-content img.inline-image {
+            max-width: 100%;
+            max-height: 280px;
+            border-radius: 6px;
+            margin: 6px 0;
+            border: 1px solid var(--dim2);
         }
 
         .msg-content p { margin: 6px 0; }
@@ -254,7 +416,7 @@
 
         .chat-input-box:focus-within {
             border-color: var(--accent);
-            box-shadow: 0 0 0 2px rgba(0,255,65,0.1);
+            box-shadow: 0 0 0 2px rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.1);
         }
 
         #chat-input {
@@ -295,6 +457,33 @@
 
         #chat-send:hover { opacity: 0.85; }
         #chat-send:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        #chat-attach {
+            position: absolute;
+            left: 8px;
+            bottom: 8px;
+            width: 38px;
+            height: 38px;
+            background: var(--bg);
+            color: var(--dim);
+            border: 1px solid var(--dim2);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+
+        #chat-attach:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        #chat-input {
+            padding-left: 56px;
+        }
 
         .chat-hint {
             font-size: 10px;
@@ -359,7 +548,7 @@
 
         .toolbtn.primary {
             background: var(--accent-dim);
-            border-color: rgba(0,255,65,0.4);
+            border-color: rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.4);
             color: var(--accent);
         }
 
@@ -831,31 +1020,30 @@
             color: var(--accent);
         }
 
-        /* Activity grid - horizontal 7 rows × 4 cols (4 weeks) */
+        /* Activity grid - horizontal strip: 4 rows × 14 cols (8 weeks compressed) */
         .activity-grid {
             display: grid;
-            grid-template-columns: repeat(4, 12px);
-            grid-template-rows: repeat(7, 12px);
+            grid-template-columns: repeat(14, 1fr);
+            grid-template-rows: repeat(4, 10px);
             grid-auto-flow: column;
             gap: 2px;
             margin: 0 auto 4px;
-            justify-content: center;
-            width: max-content;
+            width: 100%;
         }
 
         .activity-cell {
-            width: 12px;
-            height: 12px;
-            border-radius: 2px;
+            width: 100%;
+            height: 10px;
+            border-radius: 1px;
             background: var(--dim2);
             cursor: pointer;
             transition: opacity 0.15s;
         }
 
         .activity-cell:hover { opacity: 0.7; }
-        .activity-cell.l1 { background: rgba(0,255,65,0.25); }
-        .activity-cell.l2 { background: rgba(0,255,65,0.5); }
-        .activity-cell.l3 { background: rgba(0,255,65,0.75); }
+        .activity-cell.l1 { background: rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.25); }
+        .activity-cell.l2 { background: rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.5); }
+        .activity-cell.l3 { background: rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.75); }
         .activity-cell.l4 { background: var(--accent); }
 
         .activity-legend {
@@ -1051,21 +1239,22 @@
 
         /* Footer */
         footer {
-            height: 28px;
-            min-height: 28px;
+            height: 42px;
+            min-height: 42px;
             border-top: 1px solid var(--dim2);
             background: var(--bg2);
             display: flex;
-            font-size: 11px;
-            letter-spacing: 0.05em;
+            font-size: 13px;
+            letter-spacing: 0.06em;
             flex-shrink: 0;
+            font-weight: 500;
         }
 
         .stat-cell {
-            padding: 0 12px;
+            padding: 0 16px;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
             border-right: 1px solid var(--dim2);
             white-space: nowrap;
         }
@@ -1078,11 +1267,11 @@
         }
 
         .token-bar-bg {
-            width: 70px;
-            height: 8px;
+            width: 90px;
+            height: 10px;
             background: var(--bg);
             border: 1px solid var(--dim2);
-            border-radius: 1px;
+            border-radius: 2px;
             overflow: hidden;
         }
 
@@ -1223,11 +1412,14 @@
                 </div>
             </div>
             <div class="chat-input-wrap">
+                <div id="chat-pending-attachments" style="display:none;flex-wrap:wrap;gap:6px;margin-bottom:6px;"></div>
                 <div class="chat-input-box">
+                    <button id="chat-attach" title="Attach file or image">📎</button>
                     <textarea id="chat-input" placeholder="Ask your vault..." rows="1"></textarea>
                     <button id="chat-send" title="Send (Enter)">↑</button>
+                    <input type="file" id="chat-file-input" multiple accept="image/*,.pdf,.txt,.md,.csv,.json,.yaml,.yml" style="display:none">
                 </div>
-                <div class="chat-hint">Enter to send · Shift+Enter for newline</div>
+                <div class="chat-hint">Enter to send · Shift+Enter for newline · 📎 attach images/files</div>
             </div>
         </div>
 
@@ -1343,9 +1535,9 @@ Save → goes to inbox/ for re-ingestion."></textarea>
                 <div class="activity-legend">
                     <span>Less</span>
                     <div class="legend-sq" style="background:var(--dim2)"></div>
-                    <div class="legend-sq" style="background:rgba(0,255,65,0.25)"></div>
-                    <div class="legend-sq" style="background:rgba(0,255,65,0.5)"></div>
-                    <div class="legend-sq" style="background:rgba(0,255,65,0.75)"></div>
+                    <div class="legend-sq" style="background:rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.25)"></div>
+                    <div class="legend-sq" style="background:rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.5)"></div>
+                    <div class="legend-sq" style="background:rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.75)"></div>
                     <div class="legend-sq" style="background:var(--accent)"></div>
                     <span>More</span>
                 </div>
@@ -1356,6 +1548,18 @@ Save → goes to inbox/ for re-ingestion."></textarea>
                 <div class="sb-card-title">Pipeline</div>
                 <button class="toolbtn primary" id="btn-reindex" style="width:100%;padding:8px">⚙ Reindex Inbox</button>
                 <div id="reindex-status" style="font-size:10px;color:var(--dim);margin-top:6px;min-height:14px"></div>
+            </div>
+
+            <!-- Theme + Screenshot -->
+            <div class="sb-card">
+                <div class="sb-card-title">Display</div>
+                <div style="display:flex;gap:6px;margin-bottom:6px;">
+                    <button class="toolbtn" id="btn-theme" style="flex:1;padding:8px;" title="Cycle accent color">
+                        <span id="theme-swatch" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--accent);vertical-align:middle;margin-right:4px;"></span>
+                        <span id="theme-name">Green</span>
+                    </button>
+                    <button class="toolbtn" id="btn-screenshot" style="flex:1;padding:8px;" title="Save dashboard screenshot">📸 Snap</button>
+                </div>
             </div>
         </div>
 
@@ -1574,6 +1778,11 @@ class RatVault {
     initChat() {
         const input = document.getElementById('chat-input');
         const send = document.getElementById('chat-send');
+        const attach = document.getElementById('chat-attach');
+        const fileInput = document.getElementById('chat-file-input');
+
+        this.pendingAttachments = [];
+
         send.addEventListener('click', () => this.sendMessage());
         input.addEventListener('keydown', e => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -1585,23 +1794,132 @@ class RatVault {
             input.style.height = 'auto';
             input.style.height = Math.min(input.scrollHeight, 200) + 'px';
         });
+
+        attach.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', e => {
+            this.handleChatAttachments(Array.from(e.target.files));
+            e.target.value = '';
+        });
+
+        // Drag-and-drop into chat area
+        const chatView = document.getElementById('chat-view');
+        chatView.addEventListener('dragover', e => {
+            e.preventDefault();
+            chatView.style.outline = '2px dashed var(--accent)';
+        });
+        chatView.addEventListener('dragleave', () => {
+            chatView.style.outline = 'none';
+        });
+        chatView.addEventListener('drop', e => {
+            e.preventDefault();
+            chatView.style.outline = 'none';
+            if (e.dataTransfer.files.length) {
+                this.handleChatAttachments(Array.from(e.dataTransfer.files));
+            }
+        });
+    }
+
+    async handleChatAttachments(files) {
+        for (const f of files) {
+            const isImage = f.type.startsWith('image/');
+            let dataUrl = null;
+            let textContent = null;
+
+            if (isImage) {
+                dataUrl = await this.fileToDataUrl(f);
+            } else if (f.size < 100000 && /\.(md|txt|json|yaml|yml|csv|log)$/i.test(f.name)) {
+                textContent = await f.text();
+            }
+
+            this.pendingAttachments.push({
+                name: f.name,
+                type: f.type,
+                size: f.size,
+                isImage,
+                dataUrl,
+                textContent,
+            });
+        }
+        this.renderPendingAttachments();
+    }
+
+    fileToDataUrl(file) {
+        return new Promise((resolve, reject) => {
+            const r = new FileReader();
+            r.onload = () => resolve(r.result);
+            r.onerror = reject;
+            r.readAsDataURL(file);
+        });
+    }
+
+    renderPendingAttachments() {
+        const wrap = document.getElementById('chat-pending-attachments');
+        if (!this.pendingAttachments.length) {
+            wrap.style.display = 'none';
+            wrap.innerHTML = '';
+            return;
+        }
+        wrap.style.display = 'flex';
+        wrap.innerHTML = '';
+        this.pendingAttachments.forEach((att, i) => {
+            const el = document.createElement('div');
+            el.className = 'chat-attachment';
+            if (att.isImage && att.dataUrl) {
+                const img = document.createElement('img');
+                img.src = att.dataUrl;
+                el.appendChild(img);
+            } else {
+                const icon = document.createElement('span');
+                icon.textContent = '📄';
+                el.appendChild(icon);
+            }
+            const name = document.createElement('span');
+            name.textContent = att.name.length > 24 ? att.name.slice(0, 22) + '...' : att.name;
+            el.appendChild(name);
+            const rm = document.createElement('button');
+            rm.className = 'remove-att';
+            rm.textContent = '✕';
+            rm.addEventListener('click', () => {
+                this.pendingAttachments.splice(i, 1);
+                this.renderPendingAttachments();
+            });
+            el.appendChild(rm);
+            wrap.appendChild(el);
+        });
     }
 
     async sendMessage() {
         const input = document.getElementById('chat-input');
         const text = input.value.trim();
-        if (!text) return;
+        const attachments = this.pendingAttachments || [];
+        if (!text && !attachments.length) return;
 
-        this.addMessage('user', text);
+        // Build message body for display + LLM context
+        let displayText = text;
+        let llmText = text;
+
+        if (attachments.length) {
+            const fileLines = attachments.map(a => {
+                if (a.isImage) return `[Image attached: ${a.name}]`;
+                if (a.textContent) return `[File: ${a.name}]\n\n${a.textContent}`;
+                return `[Attached: ${a.name} (${this.fmtSize(a.size)})]`;
+            });
+            llmText = (text ? text + '\n\n' : '') + fileLines.join('\n\n');
+        }
+
+        this.addMessage('user', displayText || '(attachment)', attachments);
         input.value = '';
         input.style.height = 'auto';
+        this.pendingAttachments = [];
+        this.renderPendingAttachments();
+
+        // Show typing indicator
+        const typingEl = this.addTypingIndicator();
 
         const settings = JSON.parse(localStorage.getItem('rv-settings') || '{}');
         const sendBtn = document.getElementById('chat-send');
         sendBtn.disabled = true;
 
-        // If we have a session-verified key in memory (from unlock), include it.
-        // Otherwise rely on server-side config.yaml.
         const inMemKey = (this._verifiedKeys && settings.provider)
             ? this._verifiedKeys[settings.provider] : null;
 
@@ -1610,7 +1928,7 @@ class RatVault {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    message: text,
+                    message: llmText,
                     history: this.messages,
                     provider: settings.provider || null,
                     model: settings.model || null,
@@ -1618,23 +1936,60 @@ class RatVault {
                 })
             });
             const data = await r.json();
+            this.removeTypingIndicator(typingEl);
             if (data.reply) {
                 this.addMessage('assistant', data.reply);
-                this.messages.push({role: 'user', content: text});
+                this.messages.push({role: 'user', content: llmText});
                 this.messages.push({role: 'assistant', content: data.reply});
-                // Estimate tokens (rough)
-                this.addTokens(Math.ceil((text.length + data.reply.length) / 4));
+                this.addTokens(Math.ceil((llmText.length + data.reply.length) / 4));
             } else if (data.error) {
                 this.addMessage('error', `Error: ${data.error}`);
             }
         } catch (e) {
+            this.removeTypingIndicator(typingEl);
             this.addMessage('error', 'Connection error: ' + e.message);
         } finally {
             sendBtn.disabled = false;
         }
     }
 
-    addMessage(role, content) {
+    addTypingIndicator() {
+        const wrap = document.getElementById('chat-messages');
+        const msg = document.createElement('div');
+        msg.className = 'msg assistant';
+        msg.dataset.typing = '1';
+
+        const avatar = document.createElement('div');
+        avatar.className = 'msg-avatar';
+        avatar.textContent = 'RV';
+        msg.appendChild(avatar);
+
+        const body = document.createElement('div');
+        body.className = 'msg-body';
+        const author = document.createElement('div');
+        author.className = 'msg-author';
+        author.textContent = 'RatVault · thinking';
+        body.appendChild(author);
+
+        const cont = document.createElement('div');
+        cont.className = 'msg-content';
+        const ti = document.createElement('div');
+        ti.className = 'typing-indicator';
+        ti.innerHTML = '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
+        cont.appendChild(ti);
+        body.appendChild(cont);
+        msg.appendChild(body);
+
+        wrap.appendChild(msg);
+        wrap.scrollTop = wrap.scrollHeight;
+        return msg;
+    }
+
+    removeTypingIndicator(el) {
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+    }
+
+    addMessage(role, content, attachments) {
         const wrap = document.getElementById('chat-messages');
         const msg = document.createElement('div');
         msg.className = `msg ${role}`;
@@ -1657,10 +2012,30 @@ class RatVault {
         if (role === 'assistant') {
             cont.innerHTML = marked.parse(content);
         } else {
-            cont.textContent = content;
+            const p = document.createElement('div');
+            p.textContent = content;
+            cont.appendChild(p);
         }
-        body.appendChild(cont);
 
+        // Inline attachments preview
+        if (attachments && attachments.length) {
+            attachments.forEach(att => {
+                if (att.isImage && att.dataUrl) {
+                    const img = document.createElement('img');
+                    img.className = 'inline-image';
+                    img.src = att.dataUrl;
+                    img.alt = att.name;
+                    cont.appendChild(img);
+                } else {
+                    const tag = document.createElement('div');
+                    tag.style.cssText = 'display:inline-block;background:var(--bg);border:1px solid var(--dim2);border-radius:4px;padding:4px 8px;margin:6px 6px 0 0;font-size:11px;color:var(--dim);';
+                    tag.textContent = `📄 ${att.name}`;
+                    cont.appendChild(tag);
+                }
+            });
+        }
+
+        body.appendChild(cont);
         msg.appendChild(body);
         wrap.appendChild(msg);
         wrap.scrollTop = wrap.scrollHeight;
@@ -1792,7 +2167,7 @@ class RatVault {
                 view.className = 'doc-action-btn';
                 view.textContent = '👁';
                 view.title = 'View';
-                view.style.borderColor = 'rgba(0,255,65,0.3)';
+                view.style.borderColor = 'rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.3)';
                 view.style.color = 'var(--accent)';
                 view.addEventListener('click', e => {
                     e.stopPropagation();
@@ -2019,6 +2394,74 @@ class RatVault {
         });
 
         document.getElementById('btn-reindex').addEventListener('click', () => this.runReindex());
+        document.getElementById('btn-theme').addEventListener('click', () => this.cycleTheme());
+        document.getElementById('btn-screenshot').addEventListener('click', () => this.takeScreenshot());
+
+        // Apply saved theme on load
+        this.applyTheme(localStorage.getItem('rv-theme') || 'green');
+    }
+
+    THEMES = [
+        {id: 'green',  name: 'Green'},
+        {id: 'cyan',   name: 'Cyan'},
+        {id: 'blue',   name: 'Blue'},
+        {id: 'yellow', name: 'Yellow'},
+        {id: 'red',    name: 'Red'},
+        {id: 'pink',   name: 'Pink'},
+        {id: 'white',  name: 'White'},
+    ];
+
+    cycleTheme() {
+        const current = localStorage.getItem('rv-theme') || 'green';
+        const idx = this.THEMES.findIndex(t => t.id === current);
+        const next = this.THEMES[(idx + 1) % this.THEMES.length];
+        this.applyTheme(next.id);
+        this.toast(`Theme: ${next.name}`);
+    }
+
+    applyTheme(themeId) {
+        const t = this.THEMES.find(x => x.id === themeId) || this.THEMES[0];
+        if (t.id === 'green') {
+            document.documentElement.removeAttribute('data-theme');
+        } else {
+            document.documentElement.setAttribute('data-theme', t.id);
+        }
+        localStorage.setItem('rv-theme', t.id);
+        const nameEl = document.getElementById('theme-name');
+        if (nameEl) nameEl.textContent = t.name;
+    }
+
+    async takeScreenshot() {
+        const btn = document.getElementById('btn-screenshot');
+        const orig = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '⏳ Capturing';
+        try {
+            // html2canvas is loaded from CDN
+            const canvas = await html2canvas(document.body, {
+                backgroundColor: getComputedStyle(document.body).backgroundColor,
+                scale: window.devicePixelRatio || 1,
+                logging: false,
+                useCORS: true,
+            });
+            canvas.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                a.href = url;
+                a.download = `ratvault-${ts}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                this.toast('✓ Screenshot saved');
+            }, 'image/png');
+        } catch (e) {
+            this.toast('✗ Screenshot failed: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = orig;
+        }
     }
 
     restoreSidebarPos() {
@@ -2136,20 +2579,18 @@ class RatVault {
         const grid = document.getElementById('activity-grid');
         grid.innerHTML = '';
         const today = new Date();
-        // Show last 28 days (4 weeks). Align so today is in last column.
+        // Show last 56 days = 4 rows × 14 cols, horizontal strip
+        // (today in last cell)
+        const totalDays = 56;
         const start = new Date(today);
-        start.setDate(today.getDate() - 27);
-        const dayOfWeek = start.getDay();
-        const aligned = new Date(start);
-        aligned.setDate(start.getDate() - ((dayOfWeek + 6) % 7));
+        start.setDate(today.getDate() - (totalDays - 1));
 
-        // grid-auto-flow: column means we append cells column-major
-        // (col 0 day 0, col 0 day 1, ..., col 1 day 0, ...)
-        const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-        for (let col = 0; col < 4; col++) {
-            for (let row = 0; row < 7; row++) {
-                const d = new Date(aligned);
-                d.setDate(aligned.getDate() + col * 7 + row);
+        // Append column-major (matches grid-auto-flow: column)
+        for (let col = 0; col < 14; col++) {
+            for (let row = 0; row < 4; row++) {
+                const dayIdx = col * 4 + row;
+                const d = new Date(start);
+                d.setDate(start.getDate() + dayIdx);
                 const ds = d.toISOString().split('T')[0];
                 const c = counts[ds] || 0;
                 const cell = document.createElement('div');
@@ -2158,7 +2599,7 @@ class RatVault {
                 else if (c >= 3) cell.classList.add('l3');
                 else if (c >= 2) cell.classList.add('l2');
                 else if (c >= 1) cell.classList.add('l1');
-                cell.title = `${days[row]} ${ds}: ${c} note${c !== 1 ? 's' : ''}`;
+                cell.title = `${ds}: ${c} note${c !== 1 ? 's' : ''}`;
                 grid.appendChild(cell);
             }
         }
