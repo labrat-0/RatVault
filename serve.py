@@ -58,8 +58,8 @@ def load_vault_entries() -> list[dict]:
                 entry_data["file"] = md_file.name
                 entry_data["body"] = extract_body(content)
                 entries.append(entry_data)
-        except Exception as e:
-            print(f"Error loading {md_file}: {e}")
+        except Exception:
+            pass
 
     return entries
 
@@ -380,7 +380,6 @@ Use the vault entries above as context when answering. If the user asks about so
             "sources": [e.get("title") for e in relevant_entries]
         }
     except Exception as e:
-        import traceback
         return {"error": str(e), "reply": None}
 
 
