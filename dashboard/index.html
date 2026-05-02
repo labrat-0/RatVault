@@ -624,9 +624,13 @@
                 <div style="display: flex; flex-direction: column; gap: 8px; height: 100%; overflow: hidden;">
                     <div style="display: flex; gap: 4px;">
                         <input type="text" id="vault-search" placeholder="search documents..." style="flex: 1; padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--fg); font-family: var(--mono);">
+                        <button id="vault-new-doc" style="padding: 6px 12px; background: rgba(0,255,65,0.15); border: 1px solid rgba(0,255,65,0.3); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 12px;">+ New</button>
                         <button id="vault-refresh" style="padding: 6px 12px; background: rgba(0,255,65,0.15); border: 1px solid rgba(0,255,65,0.3); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 12px;">Refresh</button>
                     </div>
                     <div id="vault-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;"></div>
+                </div>
+            </div>
+
             <!-- Document View -->
             <div class="view" id="document-view">
                 <div style="display: flex; flex-direction: column; height: 100%; overflow: hidden;">
@@ -662,7 +666,7 @@
 
         <!-- Sidebar -->
         <div class="sidebar">
-            <div class="sidebar-card" style="padding:0; overflow:hidden; border-bottom:1px solid var(--border); height: 160px; flex-shrink: 0;">
+            <div class="sidebar-card" style="padding:0; overflow:hidden; border-bottom:1px solid var(--border); height: 100px; flex-shrink: 0;">
                 <!-- Profile media container -->
                 <div id="profile-media" style="width:100%; height:100%;">
                     <video
@@ -676,8 +680,8 @@
             </div>
 
             <!-- Profile Upload Button -->
-            <div class="sidebar-card" style="padding: 8px; border-bottom: 1px solid var(--border); flex-shrink: 0;">
-                <label for="profile-upload" style="display: block; padding: 6px 8px; background: rgba(0,255,65,0.15); border: 1px solid rgba(0,255,65,0.3); color: var(--fg); text-align: center; cursor: pointer; font-size: 11px; text-transform: uppercase; font-family: var(--mono);">[ Change Media ]</label>
+            <div class="sidebar-card" style="padding: 2px; border-bottom: 1px solid var(--border); flex-shrink: 0;">
+                <label for="profile-upload" style="display: block; padding: 4px 6px; background: none; border: 1px solid var(--border); color: var(--fg); text-align: center; cursor: pointer; font-size: 14px; line-height: 1; height: 24px; display: flex; align-items: center; justify-content: center;">📷</label>
                 <input type="file" id="profile-upload" accept="image/*,video/*,.gif" style="display: none;">
             </div>
 
@@ -736,7 +740,10 @@
 
             <div class="setting-group">
                 <label>Model</label>
-                <select id="model-select"></select>
+                <div style="display: flex; gap: 4px;">
+                    <select id="model-select" style="flex: 1;"></select>
+                    <button id="fetch-models-btn" style="padding: 6px 12px; background: rgba(0,255,65,0.15); border: 1px solid rgba(0,255,65,0.3); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 11px; white-space: nowrap; display: none;">Fetch</button>
+                </div>
             </div>
 
             <div class="setting-group" id="api-key-group">
@@ -793,6 +800,7 @@
                 // Settings
                 document.getElementById('close-settings').addEventListener('click', () => this.closeSettings());
                 document.getElementById('save-settings').addEventListener('click', () => this.saveSettings());
+                document.getElementById('fetch-models-btn').addEventListener('click', () => this.fetchModels());
 
                 // Profile Upload
                 this.initProfileUpload();
@@ -807,9 +815,11 @@
             initVaultView() {
                 const searchInput = document.getElementById('vault-search');
                 const refreshBtn = document.getElementById('vault-refresh');
+                const newDocBtn = document.getElementById('vault-new-doc');
                 const vaultList = document.getElementById('vault-list');
 
                 refreshBtn.addEventListener('click', () => this.loadVaultDocuments());
+                newDocBtn.addEventListener('click', () => this.createNewDocument());
 
                 searchInput.addEventListener('input', (e) => {
                     const query = e.target.value.toLowerCase();
@@ -961,6 +971,67 @@
             closeSettings() {
                 document.getElementById('settings-modal').classList.remove('active');
             }
+            async fetchModels() {
+                const provider = document.getElementById('provider-select').value;
+                const apiKey = document.getElementById('api-key-input').value.trim();
+                const modelSel = document.getElementById('model-select');
+                const fetchBtn = document.getElementById('fetch-models-btn');
+                
+                if (!apiKey && provider !== 'ollama') {
+                    alert('Please enter your API key first');
+                    return;
+                }
+
+                fetchBtn.disabled = true;
+                fetchBtn.textContent = 'Fetching...';
+
+                try {
+                    let models = [];
+                    
+                    if (provider === 'openrouter') {
+                        const res = await fetch('https://openrouter.ai/api/v1/models', {
+                            headers: { 'Authorization': `Bearer ${apiKey}` }
+                        });
+                        if (!res.ok) throw new Error('Failed to fetch from OpenRouter');
+                        const data = await res.json();
+                        models = data.data.map(m => m.id).slice(0, 20); // Limit to 20
+                    } else if (provider === 'openai') {
+                        const res = await fetch('https://api.openai.com/v1/models', {
+                            headers: { 'Authorization': `Bearer ${apiKey}` }
+                        });
+                        if (!res.ok) throw new Error('Failed to fetch from OpenAI');
+                        const data = await res.json();
+                        models = data.data.filter(m => m.id.includes('gpt')).map(m => m.id).slice(0, 20);
+                    } else if (provider === 'anthropic') {
+                        alert('Anthropic model listing coming soon. Use: claude-opus-4-5, claude-sonnet-4-5, claude-haiku-4-5-20251001');
+                        return;
+                    }
+                    
+                    if (models.length === 0) {
+                        alert('No models found');
+                        return;
+                    }
+                    
+                    // Update model select
+                    modelSel.innerHTML = '';
+                    models.forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m;
+                        opt.textContent = m;
+                        modelSel.appendChild(opt);
+                    });
+                    
+                    // Update MODELS cache
+                    this.MODELS[provider] = models;
+                    
+                    alert(`Loaded ${models.length} models from ${provider}`);
+                } catch (e) {
+                    alert('Error fetching models: ' + e.message);
+                } finally {
+                    fetchBtn.disabled = false;
+                    fetchBtn.textContent = 'Fetch';
+                }
+            }
 
             MODELS = {
                 ollama: ['mistral:7b-instruct', 'phi3:mini', 'deepseek-coder:6.7b-instruct'],
@@ -988,6 +1059,7 @@
 
             updateModelOptions(provider, selectedModel) {
                 const modelSel = document.getElementById('model-select');
+                const fetchBtn = document.getElementById('fetch-models-btn');
                 const models = this.MODELS[provider] || [];
                 modelSel.textContent = '';
                 models.forEach(m => {
@@ -1004,6 +1076,9 @@
                 const hint = document.getElementById('api-key-hint');
                 hint.textContent = this.API_KEY_HINTS[provider] || '';
                 keyGroup.style.display = provider === 'ollama' ? 'none' : 'block';
+                
+                // Show fetch button for non-ollama providers
+                fetchBtn.style.display = provider !== 'ollama' ? 'block' : 'none';
             }
 
             async openSettings() {
@@ -1098,6 +1173,41 @@
                 } catch (e) {
                     document.getElementById('vault-list').innerHTML = `<div style="color: #ff4444; padding: 12px;">Error loading documents: ${e.message}</div>`;
                 }
+            }
+
+
+            createNewDocument() {
+                const title = prompt('Document title:');
+                if (!title) return;
+                
+                const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+                const content = `---
+title: "${title}"
+slug: "${slug}"
+created: "${new Date().toISOString().split('T')[0]}"
+tags: []
+---
+
+# ${title}
+
+`;
+                
+                // Create temporary entry for preview
+                const entry = {
+                    title,
+                    slug,
+                    created: new Date().toISOString().split('T')[0],
+                    tags: [],
+                    body: content
+                };
+                
+                document.getElementById('doc-title').textContent = entry.title;
+                document.getElementById('doc-created').textContent = `Created: ${new Date(entry.created).toLocaleDateString()}`;
+                document.getElementById('doc-tags').textContent = '';
+                document.getElementById('doc-content').textContent = entry.body;
+                
+                this.switchView('document');
+                alert('Document created! You can now edit and save it.');
             }
 
             async openDocument(slug) {
