@@ -16,9 +16,8 @@ venv/
 # Ingest inbox
 inbox/
 
-# Assets (media files) - NOTE: test assets are committed, production assets excluded
-# assets/images/
-# assets/videos/
+# User-uploaded profile media (per-user runtime state)
+dashboard/assets/profile-*
 
 # IDE
 .vscode/

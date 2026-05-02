@@ -399,27 +399,37 @@
             flex: 1;
             overflow-y: auto;
             padding: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            align-content: start;
+        }
+
+        @media (max-width: 900px) {
+            .vault-list { grid-template-columns: 1fr; }
+        }
+
+        #vault-list-inbox {
+            grid-template-columns: 1fr;
         }
 
         .doc-item {
             border: 1px solid var(--dim2);
             background: var(--bg2);
-            padding: 12px 14px;
+            padding: 14px 16px;
             border-radius: 6px;
             cursor: pointer;
             transition: all 0.15s;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
+            flex-direction: column;
+            gap: 8px;
+            min-height: 80px;
         }
 
         .doc-item:hover {
             border-color: var(--accent);
             background: var(--bg);
+            transform: translateY(-1px);
         }
 
         .doc-item-info { flex: 1; min-width: 0; }
@@ -427,15 +437,16 @@
         .doc-item-title {
             font-weight: 700;
             font-size: 14px;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
             color: var(--fg);
+            word-wrap: break-word;
         }
 
         .doc-item-meta {
-            font-size: 11px;
+            font-size: 10px;
             color: var(--dim);
             display: flex;
-            gap: 8px;
+            gap: 6px;
             flex-wrap: wrap;
         }
 
@@ -766,9 +777,9 @@
 
         .sb-profile-media {
             width: 100%;
-            height: 140px;
+            height: 180px;
             overflow: hidden;
-            background: var(--bg2);
+            background: #000;
             position: relative;
             display: flex;
             align-items: center;
@@ -777,11 +788,12 @@
 
         .sb-profile-media img,
         .sb-profile-media video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
             display: block;
-            filter: grayscale(0.4) contrast(1.05);
         }
 
         .sb-profile-fallback {
@@ -819,20 +831,21 @@
             color: var(--accent);
         }
 
-        /* Activity grid */
+        /* Activity grid - horizontal 7 rows × 4 cols (4 weeks) */
         .activity-grid {
             display: grid;
-            grid-template-columns: repeat(2, 16px);
-            grid-template-rows: repeat(7, 16px);
-            gap: 3px;
-            margin: 0 auto 6px;
+            grid-template-columns: repeat(4, 12px);
+            grid-template-rows: repeat(7, 12px);
+            grid-auto-flow: column;
+            gap: 2px;
+            margin: 0 auto 4px;
             justify-content: center;
             width: max-content;
         }
 
         .activity-cell {
-            width: 16px;
-            height: 16px;
+            width: 12px;
+            height: 12px;
             border-radius: 2px;
             background: var(--dim2);
             cursor: pointer;
@@ -1253,7 +1266,7 @@ Save → goes to inbox/ for re-ingestion."></textarea>
 
             <!-- Activity -->
             <div class="sb-card">
-                <div class="sb-card-title">Activity (2 weeks)</div>
+                <div class="sb-card-title">Activity (4 weeks)</div>
                 <div class="activity-grid" id="activity-grid"></div>
                 <div class="activity-legend">
                     <span>Less</span>
@@ -1335,13 +1348,15 @@ Save → goes to inbox/ for re-ingestion."></textarea>
 
         <div class="field-group" id="cfg-key-group" style="display:none">
             <label>API Key</label>
-            <input type="password" id="cfg-key" placeholder="sk-...">
+            <input type="password" id="cfg-key" placeholder="sk-..." autocomplete="off">
             <div class="field-hint" id="cfg-key-hint"></div>
+            <div class="field-hint" id="cfg-key-status" style="color:var(--accent);display:none;">🔒 Encrypted key on file — leave blank to keep, type to replace</div>
         </div>
 
         <div class="status-msg" id="cfg-status"></div>
 
         <div class="modal-actions">
+            <button class="btn" id="cfg-reset" style="border-color:rgba(255,68,68,0.4);color:var(--danger);margin-right:auto">⚠ Reset Keys</button>
             <button class="btn" id="cfg-cancel">Cancel</button>
             <button class="btn primary" id="cfg-save">Save & Apply</button>
         </div>
@@ -1424,6 +1439,11 @@ class RatVault {
         const sendBtn = document.getElementById('chat-send');
         sendBtn.disabled = true;
 
+        // If we have a session-verified key in memory (from unlock), include it.
+        // Otherwise rely on server-side config.yaml.
+        const inMemKey = (this._verifiedKeys && settings.provider)
+            ? this._verifiedKeys[settings.provider] : null;
+
         try {
             const r = await fetch('/api/chat', {
                 method: 'POST',
@@ -1433,7 +1453,7 @@ class RatVault {
                     history: this.messages,
                     provider: settings.provider || null,
                     model: settings.model || null,
-                    api_key: settings.apiKey || null,
+                    api_key: inMemKey || null,
                 })
             });
             const data = await r.json();
@@ -1941,15 +1961,18 @@ class RatVault {
         const grid = document.getElementById('activity-grid');
         grid.innerHTML = '';
         const today = new Date();
+        // Show last 28 days (4 weeks). Align so today is in last column.
         const start = new Date(today);
-        start.setDate(today.getDate() - 13);
+        start.setDate(today.getDate() - 27);
         const dayOfWeek = start.getDay();
         const aligned = new Date(start);
         aligned.setDate(start.getDate() - ((dayOfWeek + 6) % 7));
 
-        // Row-major: 7 rows × 2 cols
-        for (let row = 0; row < 7; row++) {
-            for (let col = 0; col < 2; col++) {
+        // grid-auto-flow: column means we append cells column-major
+        // (col 0 day 0, col 0 day 1, ..., col 1 day 0, ...)
+        const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+        for (let col = 0; col < 4; col++) {
+            for (let row = 0; row < 7; row++) {
                 const d = new Date(aligned);
                 d.setDate(aligned.getDate() + col * 7 + row);
                 const ds = d.toISOString().split('T')[0];
@@ -1960,8 +1983,7 @@ class RatVault {
                 else if (c >= 3) cell.classList.add('l3');
                 else if (c >= 2) cell.classList.add('l2');
                 else if (c >= 1) cell.classList.add('l1');
-                const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-                cell.title = `${days[d.getDay()]} ${ds}: ${c} note${c !== 1 ? 's' : ''}`;
+                cell.title = `${days[row]} ${ds}: ${c} note${c !== 1 ? 's' : ''}`;
                 grid.appendChild(cell);
             }
         }
@@ -2004,9 +2026,41 @@ class RatVault {
         document.getElementById('cfg-save').addEventListener('click', () => this.saveConfig());
         document.getElementById('cfg-fetch').addEventListener('click', () => this.fetchModels());
         document.getElementById('cfg-unlock').addEventListener('click', () => this.unlockKey());
+        document.getElementById('cfg-reset').addEventListener('click', () => this.resetKeys());
         document.getElementById('cfg-provider').addEventListener('change', e => {
             this.updateProviderUI(e.target.value);
         });
+    }
+
+    resetKeys() {
+        const ok = confirm(
+            '⚠ Reset all encrypted API keys?\n\n' +
+            'This will permanently delete:\n' +
+            '  • All saved API keys for OpenAI, Anthropic, OpenRouter\n' +
+            '  • Master password association\n\n' +
+            'Use this if you forgot your master password.\n' +
+            'You will need to re-enter API keys after reset.\n\n' +
+            'Continue?'
+        );
+        if (!ok) return;
+
+        // Find and remove all rv-key-* entries
+        const toRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('rv-key-')) toRemove.push(k);
+        }
+        toRemove.forEach(k => localStorage.removeItem(k));
+
+        // Clear input fields
+        document.getElementById('cfg-master-pw').value = '';
+        document.getElementById('cfg-key').value = '';
+        document.getElementById('cfg-master-hint').textContent =
+            '✓ All keys reset. Set a new master password to encrypt new keys.';
+        document.getElementById('cfg-key-status').style.display = 'none';
+
+        this.toast(`✓ Reset ${toRemove.length} stored key${toRemove.length !== 1 ? 's' : ''}`);
+        this.updateProviderUI(document.getElementById('cfg-provider').value);
     }
 
     MODELS = {
@@ -2028,6 +2082,10 @@ class RatVault {
     }
 
     closeConfig() {
+        // Clear sensitive inputs on close to avoid keeping plaintext in DOM
+        document.getElementById('cfg-key').value = '';
+        document.getElementById('cfg-master-pw').value = '';
+        document.getElementById('cfg-status').textContent = '';
         document.getElementById('config-modal').classList.remove('active');
     }
 
@@ -2043,6 +2101,25 @@ class RatVault {
             provider === 'ollama' ? 'none' : 'block';
         document.getElementById('cfg-provider-hint').textContent = this.HINTS[provider] || '';
         document.getElementById('cfg-key-hint').textContent = this.HINTS[provider] || '';
+
+        // Show stored-key indicator (without revealing the key)
+        const hasKey = !!localStorage.getItem(`rv-key-${provider}`);
+        const keyInput = document.getElementById('cfg-key');
+        const keyStatus = document.getElementById('cfg-key-status');
+        keyInput.value = '';
+        if (hasKey && provider !== 'ollama') {
+            keyInput.placeholder = '🔒 Encrypted key stored — type new key to replace';
+            keyStatus.style.display = 'block';
+            document.getElementById('cfg-master-hint').textContent =
+                '🔒 Encrypted key found — enter master password to verify (key never displayed)';
+        } else {
+            keyInput.placeholder = 'sk-...';
+            keyStatus.style.display = 'none';
+            if (provider !== 'ollama') {
+                document.getElementById('cfg-master-hint').textContent =
+                    'Set a master password to encrypt your new API key.';
+            }
+        }
 
         const sel = document.getElementById('cfg-model');
         sel.innerHTML = '';
@@ -2067,47 +2144,72 @@ class RatVault {
         const provider = document.getElementById('cfg-provider').value;
         const apiKey = document.getElementById('cfg-key').value.trim();
         const hint = document.getElementById('cfg-fetch-hint');
+        const fetchBtn = document.getElementById('cfg-fetch');
+
         if (provider !== 'ollama' && !apiKey) {
             hint.textContent = 'Enter API key first.';
             return;
         }
+        fetchBtn.disabled = true;
         hint.textContent = 'Fetching...';
         try {
             let models = [];
             if (provider === 'ollama') {
                 const r = await fetch('http://localhost:11434/api/tags');
-                if (!r.ok) throw new Error('Ollama not running');
+                if (!r.ok) throw new Error('Ollama not running at localhost:11434');
                 const d = await r.json();
                 models = (d.models || []).map(m => m.name);
             } else if (provider === 'openai') {
                 const r = await fetch('https://api.openai.com/v1/models', {
                     headers: {'Authorization': `Bearer ${apiKey}`}
                 });
-                if (!r.ok) throw new Error('Auth failed');
+                if (!r.ok) throw new Error('OpenAI auth failed (' + r.status + ')');
                 const d = await r.json();
-                models = d.data.filter(m => /gpt-/.test(m.id)).map(m => m.id).sort().slice(0, 30);
+                // Include all chat-capable models
+                models = d.data
+                    .filter(m => /^(gpt-|o1-|o3-|chatgpt-)/.test(m.id) && !/embed|whisper|tts|dall-e/.test(m.id))
+                    .map(m => m.id)
+                    .sort();
             } else if (provider === 'anthropic') {
+                // Anthropic has no public model-list endpoint, use curated list
                 models = this.MODELS.anthropic;
+                hint.textContent = 'Anthropic has no model list API — showing curated list.';
             } else if (provider === 'openrouter') {
+                // OpenRouter: fetch ALL models, no limit
                 const r = await fetch('https://openrouter.ai/api/v1/models', {
-                    headers: {'Authorization': `Bearer ${apiKey}`}
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'HTTP-Referer': window.location.origin,
+                        'X-Title': 'RatVault',
+                    }
                 });
-                if (!r.ok) throw new Error('Fetch failed');
+                if (!r.ok) throw new Error('OpenRouter fetch failed (' + r.status + ')');
                 const d = await r.json();
-                models = d.data.map(m => m.id).slice(0, 50);
+                // Sort by id, no slicing - show all available models
+                models = d.data.map(m => m.id).sort();
+            }
+            if (!models.length) {
+                hint.textContent = 'No models found.';
+                return;
             }
             this.MODELS[provider] = models;
             this.updateProviderUI(provider);
-            hint.textContent = `✓ ${models.length} models loaded`;
+            if (provider !== 'anthropic') {
+                hint.textContent = `✓ ${models.length} models loaded from ${provider}`;
+            }
         } catch (e) {
             hint.textContent = 'Error: ' + e.message;
+        } finally {
+            fetchBtn.disabled = false;
         }
     }
 
     async unlockKey() {
+        // Verify the master password against the stored key WITHOUT revealing the key.
+        // Decrypts in memory, then immediately discards.
         const pw = document.getElementById('cfg-master-pw').value;
         if (!pw) {
-            document.getElementById('cfg-status').textContent = 'Enter master password.';
+            document.getElementById('cfg-status').textContent = 'Enter master password first.';
             return;
         }
         const provider = document.getElementById('cfg-provider').value;
@@ -2118,10 +2220,17 @@ class RatVault {
         }
         try {
             const key = await this.decryptKey(enc, pw);
-            document.getElementById('cfg-key').value = key;
-            document.getElementById('cfg-master-hint').textContent = '✓ Unlocked';
+            // Mark as verified for this session (use server-side key forwarding)
+            this._verifiedKeys = this._verifiedKeys || {};
+            this._verifiedKeys[provider] = key;  // kept only in memory for this session
+            document.getElementById('cfg-master-hint').textContent =
+                '✓ Master password verified. Key remains encrypted in storage.';
+            document.getElementById('cfg-status').textContent =
+                '✓ Key unlocked for this session (never displayed).';
         } catch (e) {
-            document.getElementById('cfg-master-hint').textContent = '✗ Wrong password';
+            document.getElementById('cfg-master-hint').textContent =
+                '✗ Wrong master password. Use Reset Keys if forgotten.';
+            document.getElementById('cfg-status').textContent = 'Decryption failed.';
         }
     }
 
@@ -2131,35 +2240,56 @@ class RatVault {
         const apiKey = document.getElementById('cfg-key').value.trim();
         const masterPw = document.getElementById('cfg-master-pw').value;
         const status = document.getElementById('cfg-status');
+        const hasStoredKey = !!localStorage.getItem(`rv-key-${provider}`);
 
-        if (!model) { status.textContent = 'Select a model.'; return; }
-        if (provider !== 'ollama' && !apiKey) {
-            status.textContent = 'Enter API key.'; return;
+        if (!model) { status.textContent = 'Select a model first.'; return; }
+
+        // Provider needs a key (or pre-existing stored key)
+        if (provider !== 'ollama' && !apiKey && !hasStoredKey) {
+            status.textContent = 'Enter an API key to authenticate.';
+            return;
         }
 
+        // Encrypt and store new key if user typed one
         if (apiKey && provider !== 'ollama') {
             if (!masterPw) {
-                status.textContent = 'Enter master password to encrypt key.';
+                status.textContent = 'Master password required to encrypt the new key.';
                 return;
             }
             try {
                 const enc = await this.encryptKey(apiKey, masterPw);
                 localStorage.setItem(`rv-key-${provider}`, enc);
             } catch (e) {
-                status.textContent = 'Encryption failed';
+                status.textContent = 'Encryption failed: ' + e.message;
                 return;
             }
         }
 
         localStorage.setItem('rv-settings', JSON.stringify({provider, model}));
 
-        try {
-            await fetch('/api/config', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({provider, model, api_key: apiKey || null}),
-            });
-        } catch (e) {}
+        // Forward key to server for THIS session only (never persisted client-side plaintext).
+        // If user provided a new key, send it; otherwise skip (server will use stored config).
+        if (apiKey) {
+            try {
+                await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({provider, model, api_key: apiKey}),
+                });
+            } catch (e) {}
+        } else {
+            try {
+                await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({provider, model}),
+                });
+            } catch (e) {}
+        }
+
+        // Clear the input field immediately - never keep plaintext in DOM
+        document.getElementById('cfg-key').value = '';
+        document.getElementById('cfg-master-pw').value = '';
 
         this.closeConfig();
         this.toast('✓ Config saved');
