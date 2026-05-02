@@ -356,6 +356,20 @@ async def upload_to_inbox(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/inbox/file/{filename}")
+async def serve_inbox_file(filename: str):
+    """Serve a file from inbox/ for in-app preview (PDFs, images, video, etc.)."""
+    safe = Path(filename).name
+    target = Path("inbox") / safe
+    if not target.exists() or not target.is_file():
+        raise HTTPException(status_code=404, detail="Not found")
+    # Inline disposition so PDFs render in browser, not download
+    return FastAPIFileResponse(
+        target,
+        headers={"Content-Disposition": f'inline; filename="{safe}"'},
+    )
+
+
 @app.delete("/api/inbox/{filename}")
 async def delete_inbox_file(filename: str):
     """Remove a file from inbox/."""

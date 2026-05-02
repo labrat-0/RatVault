@@ -1099,6 +1099,78 @@
         ::-webkit-scrollbar-thumb { background: var(--dim2); border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--dim); }
 
+        /* File Viewer Modal */
+        .viewer-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.92);
+            z-index: 10500;
+            flex-direction: column;
+        }
+
+        .viewer-overlay.active { display: flex; }
+
+        .viewer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--dim2);
+            background: var(--bg2);
+            flex-shrink: 0;
+        }
+
+        .viewer-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--accent);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 60%;
+        }
+
+        .viewer-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .viewer-body {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: #1a1a1a;
+        }
+
+        .viewer-body iframe,
+        .viewer-body embed {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+        }
+
+        .viewer-body img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .viewer-body video {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .viewer-body .unsupported {
+            color: var(--dim);
+            text-align: center;
+            padding: 32px;
+        }
+
         /* Toast */
         #toast {
             position: fixed;
@@ -1363,6 +1435,19 @@ Save → goes to inbox/ for re-ingestion."></textarea>
     </div>
 </div>
 
+<!-- File Viewer (PDFs, images, video) -->
+<div class="viewer-overlay" id="viewer-overlay">
+    <div class="viewer-header">
+        <div class="viewer-title" id="viewer-title">file</div>
+        <div class="viewer-actions">
+            <a class="btn" id="viewer-download" download>↓ Download</a>
+            <button class="btn" id="viewer-newtab">↗ New Tab</button>
+            <button class="btn primary" id="viewer-close">✕ Close</button>
+        </div>
+    </div>
+    <div class="viewer-body" id="viewer-body"></div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -1382,12 +1467,88 @@ class RatVault {
         this.initEditor();
         this.initSidebar();
         this.initConfig();
+        this.initViewer();
         this.initClock();
         this.initFooter();
         this.loadProfileMedia();
         this.loadSettings();
         this.loadStats();
         this.restoreSidebarPos();
+    }
+
+    // ==================== FILE VIEWER ====================
+    initViewer() {
+        document.getElementById('viewer-close').addEventListener('click', () => this.closeViewer());
+        document.getElementById('viewer-newtab').addEventListener('click', () => {
+            if (this._viewerUrl) window.open(this._viewerUrl, '_blank');
+        });
+        // Close on Esc
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' &&
+                document.getElementById('viewer-overlay').classList.contains('active')) {
+                this.closeViewer();
+            }
+        });
+    }
+
+    openViewer(filename, ext) {
+        const url = `/api/inbox/file/${encodeURIComponent(filename)}`;
+        this._viewerUrl = url;
+        const body = document.getElementById('viewer-body');
+        const title = document.getElementById('viewer-title');
+        const dl = document.getElementById('viewer-download');
+
+        title.textContent = filename;
+        dl.href = url;
+        dl.setAttribute('download', filename);
+
+        body.innerHTML = '';
+        const e = (ext || '').toLowerCase();
+
+        if (e === '.pdf') {
+            const iframe = document.createElement('iframe');
+            iframe.src = url + '#view=FitH';
+            iframe.setAttribute('title', filename);
+            body.appendChild(iframe);
+        } else if (['.png','.jpg','.jpeg','.gif','.webp','.svg'].includes(e)) {
+            const img = document.createElement('img');
+            img.src = url;
+            img.alt = filename;
+            body.appendChild(img);
+        } else if (['.mp4','.webm','.mov','.ogg'].includes(e)) {
+            const v = document.createElement('video');
+            v.src = url;
+            v.controls = true;
+            v.autoplay = true;
+            body.appendChild(v);
+        } else if (['.mp3','.wav','.flac'].includes(e)) {
+            const a = document.createElement('audio');
+            a.src = url;
+            a.controls = true;
+            a.autoplay = true;
+            body.appendChild(a);
+        } else if (['.md','.txt','.json','.yaml','.yml','.csv','.log'].includes(e)) {
+            // Fetch text and render in a pre block
+            const pre = document.createElement('pre');
+            pre.style.cssText = 'color:var(--fg);background:var(--bg);padding:24px;width:100%;height:100%;overflow:auto;font-family:var(--mono);font-size:13px;line-height:1.6;white-space:pre-wrap;';
+            body.appendChild(pre);
+            fetch(url).then(r => r.text()).then(t => { pre.textContent = t; });
+        } else {
+            const div = document.createElement('div');
+            div.className = 'unsupported';
+            div.innerHTML = `Cannot preview <code>${e || 'this file'}</code>.<br><br>Use Download or Open in New Tab.`;
+            body.appendChild(div);
+        }
+
+        document.getElementById('viewer-overlay').classList.add('active');
+    }
+
+    closeViewer() {
+        const body = document.getElementById('viewer-body');
+        // Stop any playing video/audio by clearing the DOM
+        body.innerHTML = '';
+        this._viewerUrl = null;
+        document.getElementById('viewer-overlay').classList.remove('active');
     }
 
     // ==================== NAV ====================
@@ -1609,6 +1770,7 @@ class RatVault {
             files.forEach(f => {
                 const item = document.createElement('div');
                 item.className = 'inbox-item';
+                item.style.cursor = 'pointer';
                 const icon = document.createElement('div');
                 icon.className = 'inbox-item-icon';
                 icon.textContent = this.fileIcon(f.type);
@@ -1619,13 +1781,23 @@ class RatVault {
                 name.textContent = f.name;
                 const meta = document.createElement('div');
                 meta.className = 'inbox-item-meta';
-                meta.textContent = `${this.fmtSize(f.size)} · ${f.modified.split('T')[0]}`;
+                meta.textContent = `${this.fmtSize(f.size)} · ${f.modified.split('T')[0]} · click to view`;
                 info.appendChild(name);
                 info.appendChild(meta);
                 item.appendChild(icon);
                 item.appendChild(info);
                 const actions = document.createElement('div');
                 actions.className = 'doc-item-actions';
+                const view = document.createElement('button');
+                view.className = 'doc-action-btn';
+                view.textContent = '👁';
+                view.title = 'View';
+                view.style.borderColor = 'rgba(0,255,65,0.3)';
+                view.style.color = 'var(--accent)';
+                view.addEventListener('click', e => {
+                    e.stopPropagation();
+                    this.openViewer(f.name, f.type);
+                });
                 const del = document.createElement('button');
                 del.className = 'doc-action-btn';
                 del.textContent = '✕';
@@ -1634,8 +1806,11 @@ class RatVault {
                     e.stopPropagation();
                     this.deleteInboxFile(f.name);
                 });
+                actions.appendChild(view);
                 actions.appendChild(del);
                 item.appendChild(actions);
+                // Click anywhere on the row (except action buttons) opens the viewer
+                item.addEventListener('click', () => this.openViewer(f.name, f.type));
                 list.appendChild(item);
             });
         } catch (e) {
