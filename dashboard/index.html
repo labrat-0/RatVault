@@ -341,8 +341,13 @@
             display: flex;
             flex-direction: column;
             gap: 0;
-            overflow: hidden;
             height: 100%;
+        }
+
+        .sidebar-scroll {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
         }
 
         .sidebar-card {
@@ -443,8 +448,9 @@
             padding: 12px;
             max-width: 500px;
             width: 90%;
-            max-height: 80vh;
+            max-height: 90vh;
             overflow-y: auto;
+            overflow-x: visible;
         }
 
         .modal h2 {
@@ -751,6 +757,7 @@
 
         <!-- Sidebar -->
         <div class="sidebar">
+          <div class="sidebar-scroll">
             <!-- Local Time (New) -->
             <div class="sidebar-card">
                 <div style="text-align: center; padding: 8px 0;">
@@ -823,8 +830,9 @@
                 <div class="card-text">RatVault — Multi-LLM knowledge system. Terminal-first. Offline-ready.</div>
             </div>
 
-            <!-- Navigation at bottom -->
-            <div class="nav-bar" style="flex-direction: column; border-top: 1px solid var(--border); margin-top: auto;">
+          </div><!-- end sidebar-scroll -->
+            <!-- Navigation at bottom — always visible -->
+            <div class="nav-bar" style="flex-direction: column; border-top: 2px solid var(--dim2); flex-shrink: 0;">
                 <button class="nav-btn active" data-view="chat" style="border-right: none; border-bottom: 1px solid var(--border);">Chat</button>
                 <button class="nav-btn" data-view="vault" style="border-right: none; border-bottom: 1px solid var(--border);">Vault</button>
                 <button class="nav-btn" id="settings-btn" style="border-right: none;">Config</button>
@@ -832,10 +840,20 @@
         </div>
     </main>
 
-    <!-- Modal -->
+    <!-- Config Modal -->
     <div class="modal-overlay" id="settings-modal">
         <div class="modal">
             <h2>// Configuration</h2>
+
+            <!-- Master Password Section -->
+            <div class="setting-group" id="master-pw-group">
+                <label>Master Password <span style="color:var(--dim);font-weight:normal;font-size:11px;">(encrypts API keys in browser)</span></label>
+                <div style="display:flex;gap:4px;">
+                    <input type="password" id="master-pw-input" placeholder="set a password to lock your keys..." style="flex:1;" />
+                    <button id="unlock-btn" style="padding:6px 10px;background:rgba(0,255,65,0.15);border:1px solid rgba(0,255,65,0.3);color:var(--fg);cursor:pointer;font-family:var(--mono);font-size:12px;white-space:nowrap;">Unlock</button>
+                </div>
+                <div class="setting-hint" id="master-pw-hint">Keys are encrypted with AES-GCM before storage. Never stored in plain text.</div>
+            </div>
 
             <div class="setting-group">
                 <label>Provider</label>
@@ -845,24 +863,25 @@
                     <option value="anthropic">Anthropic</option>
                     <option value="openrouter">OpenRouter</option>
                 </select>
-                <div class="setting-hint">Ollama runs locally — no API key needed</div>
+                <div class="setting-hint" id="provider-hint">Ollama runs locally — no API key needed</div>
             </div>
 
             <div class="setting-group">
                 <label>Model</label>
-                <div style="display: flex; gap: 4px;">
-                    <select id="model-select" style="flex: 1;"></select>
-                    <button id="fetch-models-btn" style="padding: 6px 12px; background: rgba(0,255,65,0.15); border: 1px solid rgba(0,255,65,0.3); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 13px; white-space: nowrap; display: none;">Fetch</button>
+                <div style="display:flex;gap:4px;">
+                    <select id="model-select" style="flex:1;"></select>
+                    <button id="fetch-models-btn" style="padding:6px 10px;background:rgba(0,255,65,0.15);border:1px solid rgba(0,255,65,0.3);color:var(--fg);cursor:pointer;font-family:var(--mono);font-size:12px;white-space:nowrap;">↻ Fetch</button>
                 </div>
+                <div class="setting-hint" id="model-fetch-hint"></div>
             </div>
 
-            <div class="setting-group" id="api-key-group">
+            <div class="setting-group" id="api-key-group" style="display:none;">
                 <label>API Key</label>
                 <input type="password" id="api-key-input" placeholder="sk-..." />
                 <div class="setting-hint" id="api-key-hint"></div>
             </div>
 
-            <div id="config-status" style="font-size:11px; color:var(--dim); margin-bottom:8px;"></div>
+            <div id="config-status" style="font-size:11px;color:var(--dim);margin-bottom:8px;padding:6px;border:1px solid var(--dim2);"></div>
 
             <div class="modal-actions">
                 <button class="btn" id="close-settings">Cancel</button>
@@ -912,6 +931,8 @@
                 document.getElementById('close-settings').addEventListener('click', () => this.closeSettings());
                 document.getElementById('save-settings').addEventListener('click', () => this.saveSettings());
                 document.getElementById('fetch-models-btn').addEventListener('click', () => this.fetchModels());
+                document.getElementById('unlock-btn').addEventListener('click', () => this.unlockKeys());
+                document.getElementById('provider-select').addEventListener('change', (e) => this.updateModelOptions(e.target.value, null));
 
                 // Profile Upload
                 this.initProfileUpload();
@@ -1268,7 +1289,6 @@
                     const response = await fetch('/api/entries');
                     const entries = await response.json();
                     document.getElementById('stat-entries').textContent = entries.length;
-                    document.getElementById('stat-entries-big').textContent = entries.length;
                     document.getElementById('status-entries').textContent = entries.length;
 
                     const provResponse = await fetch('/api/providers');
@@ -1337,86 +1357,97 @@
                 }
             }
 
-            openSettings() {
-                document.getElementById('settings-modal').classList.add('active');
+            // ── Crypto helpers (AES-GCM via Web Crypto API) ─────────────────
+            async _deriveKey(password, salt) {
+                const enc = new TextEncoder();
+                const keyMaterial = await crypto.subtle.importKey(
+                    'raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']
+                );
+                return crypto.subtle.deriveKey(
+                    { name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' },
+                    keyMaterial,
+                    { name: 'AES-GCM', length: 256 },
+                    false, ['encrypt', 'decrypt']
+                );
             }
 
-            closeSettings() {
-                document.getElementById('settings-modal').classList.remove('active');
+            async encryptApiKey(apiKey, password) {
+                const enc = new TextEncoder();
+                const salt = crypto.getRandomValues(new Uint8Array(16));
+                const iv   = crypto.getRandomValues(new Uint8Array(12));
+                const key  = await this._deriveKey(password, salt);
+                const ciphertext = await crypto.subtle.encrypt(
+                    { name: 'AES-GCM', iv }, key, enc.encode(apiKey)
+                );
+                const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+                return JSON.stringify({ salt: b64(salt), iv: b64(iv), ct: b64(ciphertext) });
             }
-            async fetchModels() {
+
+            async decryptApiKey(encrypted, password) {
+                const { salt, iv, ct } = JSON.parse(encrypted);
+                const fromB64 = (s) => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+                const key = await this._deriveKey(password, fromB64(salt));
+                const plain = await crypto.subtle.decrypt(
+                    { name: 'AES-GCM', iv: fromB64(iv) }, key, fromB64(ct)
+                );
+                return new TextDecoder().decode(plain);
+            }
+
+            // ── Key unlock flow ────────────────────────────────────────────
+            async unlockKeys() {
+                const pw = document.getElementById('master-pw-input').value;
+                if (!pw) { this._setStatus('Enter your master password first.'); return; }
+
                 const provider = document.getElementById('provider-select').value;
-                const apiKey = document.getElementById('api-key-input').value.trim();
-                const modelSel = document.getElementById('model-select');
-                const fetchBtn = document.getElementById('fetch-models-btn');
-                
-                if (!apiKey && provider !== 'ollama') {
-                    alert('Please enter your API key first');
+                const storageKey = `ratvault-key-${provider}`;
+                const encrypted  = localStorage.getItem(storageKey);
+
+                if (!encrypted) {
+                    this._setStatus(`No saved key for ${provider}. Enter the key and save to encrypt it.`);
                     return;
                 }
 
-                fetchBtn.disabled = true;
-                fetchBtn.textContent = 'Fetching...';
-
                 try {
-                    let models = [];
-                    
-                    if (provider === 'openrouter') {
-                        const res = await fetch('https://openrouter.ai/api/v1/models', {
-                            headers: { 'Authorization': `Bearer ${apiKey}` }
-                        });
-                        if (!res.ok) throw new Error('Failed to fetch from OpenRouter');
-                        const data = await res.json();
-                        models = data.data.map(m => m.id).slice(0, 20); // Limit to 20
-                    } else if (provider === 'openai') {
-                        const res = await fetch('https://api.openai.com/v1/models', {
-                            headers: { 'Authorization': `Bearer ${apiKey}` }
-                        });
-                        if (!res.ok) throw new Error('Failed to fetch from OpenAI');
-                        const data = await res.json();
-                        models = data.data.filter(m => m.id.includes('gpt')).map(m => m.id).slice(0, 20);
-                    } else if (provider === 'anthropic') {
-                        alert('Anthropic model listing coming soon. Use: claude-opus-4-5, claude-sonnet-4-5, claude-haiku-4-5-20251001');
-                        return;
-                    }
-                    
-                    if (models.length === 0) {
-                        alert('No models found');
-                        return;
-                    }
-                    
-                    // Update model select
-                    modelSel.innerHTML = '';
-                    models.forEach(m => {
-                        const opt = document.createElement('option');
-                        opt.value = m;
-                        opt.textContent = m;
-                        modelSel.appendChild(opt);
-                    });
-                    
-                    // Update MODELS cache
-                    this.MODELS[provider] = models;
-                    
-                    alert(`Loaded ${models.length} models from ${provider}`);
-                } catch (e) {
-                    alert('Error fetching models: ' + e.message);
-                } finally {
-                    fetchBtn.disabled = false;
-                    fetchBtn.textContent = 'Fetch';
+                    const apiKey = await this.decryptApiKey(encrypted, pw);
+                    document.getElementById('api-key-input').value = apiKey;
+                    this._setMasterHint('✓ Key decrypted and loaded');
+                    this._setStatus(`${provider} API key unlocked.`);
+                } catch {
+                    this._setMasterHint('✗ Wrong password or corrupted key');
+                    this._setStatus('Decryption failed — check master password.');
                 }
             }
 
+            _setStatus(msg) {
+                const el = document.getElementById('config-status');
+                if (el) el.textContent = msg;
+            }
+
+            _setMasterHint(msg) {
+                const el = document.getElementById('master-pw-hint');
+                if (el) el.textContent = msg;
+            }
+
+            // ── Model lists (fallback / curated) ──────────────────────────
             MODELS = {
-                ollama: ['mistral:7b-instruct', 'phi3:mini', 'deepseek-coder:6.7b-instruct'],
-                openai: ['gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo'],
-                anthropic: ['claude-haiku-4-5-20251001', 'claude-sonnet-4-5', 'claude-opus-4-5'],
-                openrouter: ['anthropic/claude-3-haiku', 'openai/gpt-4o-mini', 'mistralai/mistral-7b-instruct'],
+                ollama: [],  // populated by fetchModels()
+                openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+                anthropic: [
+                    'claude-opus-4-7', 'claude-sonnet-4-6',
+                    'claude-haiku-4-5-20251001', 'claude-sonnet-4-5', 'claude-opus-4-5'
+                ],
+                openrouter: [
+                    'anthropic/claude-opus-4', 'anthropic/claude-sonnet-4-5',
+                    'openai/gpt-4o', 'openai/gpt-4o-mini',
+                    'mistralai/mistral-7b-instruct', 'google/gemini-pro',
+                    'meta-llama/llama-3.1-70b-instruct'
+                ],
             };
 
             API_KEY_HINTS = {
-                ollama: 'No key needed — Ollama runs locally',
-                openai: 'Get key at platform.openai.com',
-                anthropic: 'Get key at console.anthropic.com',
+                ollama: 'No key needed — Ollama runs locally at localhost:11434',
+                openai: 'Get key at platform.openai.com/api-keys',
+                anthropic: 'Get key at console.anthropic.com/settings/keys',
                 openrouter: 'Get key at openrouter.ai/keys',
             };
 
@@ -1425,75 +1456,179 @@
                 const provider = settings.provider || 'ollama';
                 document.getElementById('provider-select').value = provider;
                 this.updateModelOptions(provider, settings.model);
-                document.getElementById('provider-select').addEventListener('change', (e) => {
-                    this.updateModelOptions(e.target.value, null);
-                });
             }
 
             updateModelOptions(provider, selectedModel) {
-                const modelSel = document.getElementById('model-select');
-                const fetchBtn = document.getElementById('fetch-models-btn');
-                const models = this.MODELS[provider] || [];
-                modelSel.textContent = '';
-                models.forEach(m => {
-                    const opt = document.createElement('option');
-                    opt.value = m;
-                    opt.textContent = m;
-                    modelSel.appendChild(opt);
-                });
-                if (selectedModel && models.includes(selectedModel)) {
-                    modelSel.value = selectedModel;
+                const modelSel  = document.getElementById('model-select');
+                const fetchBtn  = document.getElementById('fetch-models-btn');
+                const keyGroup  = document.getElementById('api-key-group');
+                const hint      = document.getElementById('api-key-hint');
+                const provHint  = document.getElementById('provider-hint');
+                const fetchHint = document.getElementById('model-fetch-hint');
+
+                // Show/hide API key field
+                keyGroup.style.display  = provider === 'ollama' ? 'none' : 'block';
+                hint.textContent        = this.API_KEY_HINTS[provider] || '';
+                provHint.textContent    = this.API_KEY_HINTS[provider] || '';
+
+                // Show encrypted key status
+                const storageKey = `ratvault-key-${provider}`;
+                const hasEncKey  = !!localStorage.getItem(storageKey);
+                if (hasEncKey && provider !== 'ollama') {
+                    this._setMasterHint('🔒 Encrypted key found — enter master password to unlock');
+                } else if (provider !== 'ollama') {
+                    this._setMasterHint('No saved key yet — enter key below and save to encrypt it.');
                 }
 
-                const keyGroup = document.getElementById('api-key-group');
-                const hint = document.getElementById('api-key-hint');
-                hint.textContent = this.API_KEY_HINTS[provider] || '';
-                keyGroup.style.display = provider === 'ollama' ? 'none' : 'block';
-                
-                // Show fetch button for non-ollama providers
-                fetchBtn.style.display = provider !== 'ollama' ? 'block' : 'none';
+                // Populate model dropdown from cache
+                const models = this.MODELS[provider] || [];
+                modelSel.textContent = '';
+
+                if (models.length === 0) {
+                    const placeholder = document.createElement('option');
+                    placeholder.value = '';
+                    placeholder.textContent = provider === 'ollama'
+                        ? '← click Fetch to load local models'
+                        : '← click Fetch to load live models';
+                    modelSel.appendChild(placeholder);
+                    fetchHint.textContent = 'Click ↻ Fetch to load available models.';
+                } else {
+                    models.forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m;
+                        opt.textContent = m;
+                        modelSel.appendChild(opt);
+                    });
+                    if (selectedModel) modelSel.value = selectedModel;
+                    fetchHint.textContent = `${models.length} models loaded. Click ↻ Fetch to refresh.`;
+                }
+
+                fetchBtn.style.display = 'block';  // always show Fetch for all providers
             }
 
             async openSettings() {
                 document.getElementById('settings-modal').classList.add('active');
-                // Load current server config
+                this.loadSettings();
                 try {
                     const res = await fetch('/api/config');
                     const cfg = await res.json();
-                    const statusEl = document.getElementById('config-status');
-                    const keys = [];
-                    if (cfg.has_openai_key) keys.push('OpenAI key saved');
-                    if (cfg.has_anthropic_key) keys.push('Anthropic key saved');
-                    if (cfg.has_openrouter_key) keys.push('OpenRouter key saved');
-                    statusEl.textContent = keys.length ? '// ' + keys.join(' · ') : '// no API keys saved yet';
-                } catch (_) {}
+                    const parts = [];
+                    if (cfg.has_openai_key)     parts.push('OpenAI ✓');
+                    if (cfg.has_anthropic_key)  parts.push('Anthropic ✓');
+                    if (cfg.has_openrouter_key) parts.push('OpenRouter ✓');
+                    this._setStatus(parts.length
+                        ? 'Server keys: ' + parts.join(' · ')
+                        : 'No server-side API keys configured yet.');
+                } catch (_) {
+                    this._setStatus('Could not reach server config.');
+                }
             }
 
             closeSettings() {
                 document.getElementById('settings-modal').classList.remove('active');
             }
 
+            async fetchModels() {
+                const provider = document.getElementById('provider-select').value;
+                const apiKey   = document.getElementById('api-key-input').value.trim();
+                const modelSel = document.getElementById('model-select');
+                const fetchBtn = document.getElementById('fetch-models-btn');
+                const hint     = document.getElementById('model-fetch-hint');
+
+                if (provider !== 'ollama' && !apiKey) {
+                    hint.textContent = 'Enter (or unlock) your API key first.';
+                    return;
+                }
+
+                fetchBtn.disabled = true;
+                fetchBtn.textContent = '...';
+
+                try {
+                    let models = [];
+
+                    if (provider === 'ollama') {
+                        const res = await fetch('http://localhost:11434/api/tags');
+                        if (!res.ok) throw new Error('Ollama not running at localhost:11434');
+                        const data = await res.json();
+                        models = (data.models || []).map(m => m.name);
+                    } else if (provider === 'openai') {
+                        const res = await fetch('https://api.openai.com/v1/models', {
+                            headers: { 'Authorization': `Bearer ${apiKey}` }
+                        });
+                        if (!res.ok) throw new Error('OpenAI: ' + res.status);
+                        const data = await res.json();
+                        models = data.data
+                            .filter(m => /gpt-4|gpt-3\.5/.test(m.id))
+                            .map(m => m.id)
+                            .sort()
+                            .slice(0, 30);
+                    } else if (provider === 'anthropic') {
+                        // Anthropic has no public model list endpoint; use curated list
+                        models = this.MODELS.anthropic;
+                        hint.textContent = 'Anthropic does not expose a model list — showing curated list.';
+                    } else if (provider === 'openrouter') {
+                        const res = await fetch('https://openrouter.ai/api/v1/models', {
+                            headers: { 'Authorization': `Bearer ${apiKey}` }
+                        });
+                        if (!res.ok) throw new Error('OpenRouter: ' + res.status);
+                        const data = await res.json();
+                        models = data.data.map(m => m.id).slice(0, 40);
+                    }
+
+                    if (models.length === 0) {
+                        hint.textContent = 'No models found.';
+                        return;
+                    }
+
+                    this.MODELS[provider] = models;
+                    modelSel.textContent = '';
+                    models.forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m;
+                        opt.textContent = m;
+                        modelSel.appendChild(opt);
+                    });
+                    hint.textContent = `✓ ${models.length} models loaded from ${provider}.`;
+                } catch (e) {
+                    hint.textContent = 'Error: ' + e.message;
+                } finally {
+                    fetchBtn.disabled = false;
+                    fetchBtn.textContent = '↻ Fetch';
+                }
+            }
+
             async saveSettings() {
                 const provider = document.getElementById('provider-select').value;
-                const model = document.getElementById('model-select').value;
-                const apiKey = document.getElementById('api-key-input').value.trim();
+                const model    = document.getElementById('model-select').value;
+                const apiKey   = document.getElementById('api-key-input').value.trim();
+                const masterPw = document.getElementById('master-pw-input').value;
 
-                // Validate model selection
                 if (!model) {
-                    alert('Please select a model');
-                    return;
+                    this._setStatus('Select a model first (click ↻ Fetch).'); return;
                 }
-
-                // Validate API key for non-ollama providers
                 if (provider !== 'ollama' && !apiKey) {
-                    alert(`API key is required for ${provider}`);
-                    return;
+                    this._setStatus('Enter an API key for ' + provider); return;
                 }
 
-                const local = { provider, model, apiKey };
-                localStorage.setItem('ratvault-settings', JSON.stringify(local));
+                // Encrypt and store API key if provided
+                if (apiKey && provider !== 'ollama') {
+                    if (!masterPw) {
+                        this._setStatus('Set a master password to encrypt your API key securely.');
+                        return;
+                    }
+                    try {
+                        const encrypted = await this.encryptApiKey(apiKey, masterPw);
+                        localStorage.setItem(`ratvault-key-${provider}`, encrypted);
+                        this._setMasterHint('🔒 Key encrypted and stored');
+                    } catch (e) {
+                        this._setStatus('Encryption failed: ' + e.message); return;
+                    }
+                }
 
-                // Persist to server config.yaml
+                // Store non-sensitive settings
+                localStorage.setItem('ratvault-settings', JSON.stringify({ provider, model }));
+
+                // Push to server config (key goes to config.yaml on server, never localStorage plaintext)
                 try {
                     const res = await fetch('/api/config', {
                         method: 'POST',
@@ -1501,13 +1636,10 @@
                         body: JSON.stringify({ provider, model, api_key: apiKey || null }),
                     });
                     if (!res.ok) {
-                        const err = await res.text();
-                        alert('Config save failed: ' + err);
-                        return;
+                        this._setStatus('Server config save failed.'); return;
                     }
                 } catch (e) {
-                    alert('Error saving config: ' + e.message);
-                    return;
+                    this._setStatus('Could not reach server: ' + e.message); return;
                 }
 
                 this.closeSettings();
@@ -1613,15 +1745,6 @@
             initProfileUpload() {
                 const uploadInput = document.getElementById('profile-upload');
                 const profileMedia = document.getElementById('profile-media');
-                const toggleBtn = document.getElementById('toggle-profile');
-                const profileContainer = document.getElementById('profile-container');
-
-                // Toggle profile visibility
-                toggleBtn.addEventListener('click', () => {
-                    const isVisible = profileContainer.style.display !== 'none';
-                    profileContainer.style.display = isVisible ? 'none' : 'block';
-                    toggleBtn.textContent = isVisible ? '≡' : '✕';
-                });
 
                 uploadInput.addEventListener('change', async (e) => {
                     const file = e.target.files[0];
