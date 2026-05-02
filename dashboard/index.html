@@ -185,6 +185,11 @@
             gap: 6px;
             padding: 0;
             border-bottom: 1px solid var(--border);
+            background-image:
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 28px 28px;
+            background-position: 0 0, 0 0;
         }
 
         .message {
@@ -582,6 +587,59 @@
             background: var(--dim);
         }
 
+        /* Contribution Grid */
+        #contribution-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2px;
+            margin-bottom: 8px;
+        }
+
+        .contribution-cell {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            position: relative;
+        }
+
+        .contribution-cell:hover {
+            opacity: 0.8;
+        }
+
+        .contribution-cell.empty {
+            background: var(--dim2);
+        }
+
+        .contribution-cell.low {
+            background: rgba(0, 180, 60, 0.4);
+        }
+
+        .contribution-cell.medium {
+            background: rgba(0, 220, 80, 0.7);
+        }
+
+        .contribution-cell.high {
+            background: rgba(0, 255, 65, 1.0);
+        }
+
+        .activity-legend {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-size: 11px;
+            color: var(--dim);
+            margin-top: 4px;
+        }
+
+        .legend-square {
+            width: 8px;
+            height: 8px;
+            border-radius: 1px;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             main {
@@ -737,6 +795,19 @@
                 <div class="card-row">
                     <span class="card-label">Model</span>
                     <span class="card-value" id="stat-model">-</span>
+                </div>
+            </div>
+
+            <div class="sidebar-card">
+                <div class="card-title">Vault Activity (2 weeks)</div>
+                <div id="contribution-grid"></div>
+                <div class="activity-legend">
+                    <span>Less</span>
+                    <div class="legend-square" style="background: var(--dim2);"></div>
+                    <div class="legend-square" style="background: rgba(0, 180, 60, 0.4);"></div>
+                    <div class="legend-square" style="background: rgba(0, 220, 80, 0.7);"></div>
+                    <div class="legend-square" style="background: rgba(0, 255, 65, 1.0);"></div>
+                    <span>More</span>
                 </div>
             </div>
 
@@ -1205,8 +1276,64 @@
                     document.getElementById('stat-provider').textContent = prov.provider.toUpperCase();
                     document.getElementById('stat-model').textContent = prov.model.split('/')[0].toUpperCase();
                     document.getElementById('status-model').textContent = prov.model.toUpperCase();
+
+                    // Render contribution grid
+                    this.renderContributionGrid(entries);
                 } catch (error) {
                     // Stats load failed silently
+                }
+            }
+
+            async renderContributionGrid(entries) {
+                // Count entries by created date
+                const counts = {};
+                entries.forEach(e => {
+                    if (e.created) {
+                        counts[e.created] = (counts[e.created] || 0) + 1;
+                    }
+                });
+
+                const grid = document.getElementById('contribution-grid');
+                grid.textContent = '';
+
+                const today = new Date();
+                const start = new Date(today);
+                start.setDate(today.getDate() - 13);
+
+                // Align to Monday of the week containing 'start'
+                const dayOfWeek = start.getDay();
+                const alignedStart = new Date(start);
+                alignedStart.setDate(start.getDate() - ((dayOfWeek + 6) % 7));
+
+                // Build 7 rows × 2 columns grid (14 days)
+                for (let col = 0; col < 2; col++) {
+                    for (let row = 0; row < 7; row++) {
+                        const d = new Date(alignedStart);
+                        d.setDate(alignedStart.getDate() + col * 7 + row);
+                        const dateStr = d.toISOString().split('T')[0];
+                        const count = counts[dateStr] || 0;
+
+                        const cell = document.createElement('div');
+                        cell.className = 'contribution-cell';
+
+                        // Color based on count
+                        if (count === 0) {
+                            cell.classList.add('empty');
+                        } else if (count <= 2) {
+                            cell.classList.add('low');
+                        } else if (count <= 4) {
+                            cell.classList.add('medium');
+                        } else {
+                            cell.classList.add('high');
+                        }
+
+                        // Tooltip
+                        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                        const dayName = dayNames[d.getDay()];
+                        cell.title = `${dayName} ${dateStr}: ${count} doc${count !== 1 ? 's' : ''}`;
+
+                        grid.appendChild(cell);
+                    }
                 }
             }
 
