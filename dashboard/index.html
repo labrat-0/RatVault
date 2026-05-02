@@ -544,7 +544,7 @@
             border-top: 1px solid var(--fg);
             background: var(--dim2);
             display: grid;
-            grid-template-columns: auto auto 1fr auto auto;
+            grid-template-columns: auto auto 1fr auto auto auto;
             gap: 0;
             height: 32px;
             font-size: 13px;
@@ -597,13 +597,15 @@
         #contribution-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 2px;
+            grid-template-rows: repeat(7, 1fr);
+            gap: 3px;
             margin-bottom: 8px;
+            width: 100%;
         }
 
         .contribution-cell {
-            width: 12px;
-            height: 12px;
+            aspect-ratio: 1;
+            width: 100%;
             border-radius: 2px;
             cursor: pointer;
             transition: opacity 0.2s;
@@ -644,6 +646,75 @@
             width: 8px;
             height: 8px;
             border-radius: 1px;
+        }
+
+        /* Profile media styling */
+        #profile-media img,
+        #profile-media video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* Preview pane markdown styling */
+        #doc-preview h1, #doc-preview h2, #doc-preview h3 {
+            margin-top: 12px;
+            margin-bottom: 6px;
+            color: var(--fg);
+        }
+
+        #doc-preview h1 { font-size: 24px; font-weight: 700; }
+        #doc-preview h2 { font-size: 20px; font-weight: 700; }
+        #doc-preview h3 { font-size: 16px; font-weight: 700; }
+
+        #doc-preview p { margin: 8px 0; color: var(--fg); }
+
+        #doc-preview code {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--dim2);
+            padding: 2px 4px;
+            border-radius: 2px;
+            font-size: 12px;
+            color: rgba(0,255,65,0.8);
+        }
+
+        #doc-preview pre {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--dim2);
+            padding: 12px;
+            border-radius: 3px;
+            margin: 12px 0;
+            overflow-x: auto;
+        }
+
+        #doc-preview pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            color: var(--fg);
+        }
+
+        #doc-preview ul, #doc-preview ol {
+            margin: 8px 0 8px 20px;
+        }
+
+        #doc-preview li { margin: 4px 0; color: var(--fg); }
+
+        #doc-preview a {
+            color: rgba(0,255,65,0.8);
+            text-decoration: none;
+            border-bottom: 1px dotted rgba(0,255,65,0.3);
+        }
+
+        #doc-preview a:hover {
+            border-bottom: 1px solid rgba(0,255,65,0.6);
+        }
+
+        #doc-preview img, #doc-preview video {
+            max-width: 100%;
+            margin: 8px 0;
+            border: 1px solid var(--dim2);
         }
 
         /* Responsive */
@@ -717,6 +788,7 @@
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                             <h1 id="doc-title" style="margin: 0; font-size: 20px; color: var(--fg);">Loading...</h1>
                             <div style="display: flex; gap: 4px;">
+                                <button id="doc-new" style="padding: 6px 12px; background: rgba(0,255,65,0.15); border: 1px solid rgba(0,255,65,0.3); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 12px; text-transform: uppercase;">+ New</button>
                                 <button id="doc-save" style="padding: 6px 12px; background: rgba(0,255,65,0.15); border: 1px solid rgba(0,255,65,0.3); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 12px; text-transform: uppercase; display: none;">💾 Save</button>
                                 <button id="doc-back" style="background: none; border: 1px solid var(--border); color: var(--fg); cursor: pointer; padding: 4px 8px; font-family: var(--mono); font-size: 12px;">← Back</button>
                             </div>
@@ -895,6 +967,7 @@
         <div class="status-cell invert">&nbsp;RAT VAULT&nbsp;</div>
         <div class="status-cell">vault&nbsp;<span class="status-dim" id="status-entries">0</span></div>
         <div class="status-cell status-dim">terminal · local knowledge system</div>
+        <div class="status-cell status-dim">tokens&nbsp;<span id="token-display">0/11539</span>&nbsp;<span id="token-percent">0%</span></div>
         <div class="status-cell" id="status-model">-</div>
         <div class="status-cell invert">&nbsp;OFFLINE OK&nbsp;</div>
     </footer>
@@ -950,6 +1023,7 @@
                 this.loadSettings();
                 this.loadProfileImage();
                 this.restoreSidebarPosition();
+                this.updateTokenDisplay();
             }
 
             initClock() {
@@ -1026,6 +1100,7 @@
                 const preview = document.getElementById('doc-preview');
                 const saveBtn = document.getElementById('doc-save');
                 const backBtn = document.getElementById('doc-back');
+                const newBtn = document.getElementById('doc-new');
 
                 // Mode buttons
                 document.getElementById('doc-mode-edit').addEventListener('click', () => this.switchDocMode('edit'));
@@ -1055,6 +1130,7 @@
                 // Save button
                 saveBtn.addEventListener('click', () => this.saveDocument());
                 backBtn.addEventListener('click', () => this.switchView('vault'));
+                newBtn.addEventListener('click', () => this.createNewDocument());
 
                 this.currentDocMode = 'split';
             }
@@ -1099,6 +1175,12 @@
 
             insertMarkdown(type) {
                 const editor = document.getElementById('doc-editor');
+
+                // If in preview mode, switch to split to show editor
+                if (this.currentDocMode === 'preview') {
+                    this.switchDocMode('split');
+                }
+
                 const start = editor.selectionStart;
                 const end = editor.selectionEnd;
                 const selected = editor.value.substring(start, end) || 'text';
@@ -1325,9 +1407,9 @@
                 const alignedStart = new Date(start);
                 alignedStart.setDate(start.getDate() - ((dayOfWeek + 6) % 7));
 
-                // Build 7 rows × 2 columns grid (14 days)
-                for (let col = 0; col < 2; col++) {
-                    for (let row = 0; row < 7; row++) {
+                // Build 7 rows × 2 columns grid (14 days) in row-major order
+                for (let row = 0; row < 7; row++) {
+                    for (let col = 0; col < 2; col++) {
                         const d = new Date(alignedStart);
                         d.setDate(alignedStart.getDate() + col * 7 + row);
                         const dateStr = d.toISOString().split('T')[0];
@@ -1649,6 +1731,18 @@
             updateStatusBar(provider, model) {
                 const el = document.getElementById('status-model');
                 if (el) el.textContent = `${provider}:${model}`;
+            }
+
+            updateTokenDisplay() {
+                const tokenData = JSON.parse(localStorage.getItem('ratvault-tokens') || '{"used": 0, "max": 11539}');
+                const used = tokenData.used || 0;
+                const max = tokenData.max || 11539;
+                const percent = Math.round((used / max) * 100);
+
+                const displayEl = document.getElementById('token-display');
+                const percentEl = document.getElementById('token-percent');
+                if (displayEl) displayEl.textContent = `${used}/${max}`;
+                if (percentEl) percentEl.textContent = `${percent}%`;
             }
 
             async loadVaultDocuments() {
