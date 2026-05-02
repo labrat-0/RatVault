@@ -8,8 +8,9 @@ from pathlib import Path
 from typing import Optional
 
 import yaml
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse as FastAPIFileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -32,6 +33,16 @@ class ChatRequest(BaseModel):
     provider: Optional[str] = None
     model: Optional[str] = None
     api_key: Optional[str] = None
+
+
+class DocumentRequest(BaseModel):
+    title: str
+    slug: str
+    content: str
+
+
+class DocumentUpdateRequest(BaseModel):
+    content: str
 
 
 @app.on_event("startup")
@@ -288,8 +299,100 @@ async def update_config(update: ConfigUpdate):
 
 @app.post("/api/reindex")
 async def reindex():
-    """Reindex vault (scan for new/changed files)."""
-    return {"status": "ok"}
+    """Reindex vault: run ingest.py on inbox/ to populate Notes/."""
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["python", "ingest.py"],
+            capture_output=True, text=True, cwd=".", timeout=300
+        )
+        return {
+            "status": "ok" if result.returncode == 0 else "error",
+            "stdout": result.stdout[-2000:] if result.stdout else "",
+            "stderr": result.stderr[-2000:] if result.stderr else "",
+            "returncode": result.returncode,
+        }
+    except subprocess.TimeoutExpired:
+        return {"status": "error", "stderr": "Ingest timed out after 5 minutes"}
+    except Exception as e:
+        return {"status": "error", "stderr": str(e)}
+
+
+@app.get("/api/inbox")
+async def list_inbox():
+    """List files in inbox/ folder."""
+    inbox = Path("inbox")
+    if not inbox.exists():
+        return []
+    files = []
+    for f in inbox.iterdir():
+        if f.is_file() and not f.name.startswith("."):
+            files.append({
+                "name": f.name,
+                "size": f.stat().st_size,
+                "modified": datetime.fromtimestamp(f.stat().st_mtime).isoformat(),
+                "type": f.suffix.lower(),
+            })
+    files.sort(key=lambda x: x["modified"], reverse=True)
+    return files
+
+
+@app.post("/api/inbox/upload")
+async def upload_to_inbox(file: UploadFile = File(...)):
+    """Upload a file (doc, image, video, pdf) to inbox/ folder."""
+    try:
+        inbox = Path("inbox")
+        inbox.mkdir(parents=True, exist_ok=True)
+        safe_name = Path(file.filename).name
+        target = inbox / safe_name
+        content = await file.read()
+        target.write_bytes(content)
+        return {
+            "success": True,
+            "filename": safe_name,
+            "size": len(content),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/inbox/{filename}")
+async def delete_inbox_file(filename: str):
+    """Remove a file from inbox/."""
+    try:
+        inbox = Path("inbox")
+        target = inbox / Path(filename).name
+        if target.exists():
+            target.unlink()
+            return {"success": True}
+        raise HTTPException(status_code=404, detail="Not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/inbox/save-edit")
+async def save_edit_to_inbox(req: DocumentRequest):
+    """Save edited document back to inbox/ for re-ingestion."""
+    try:
+        inbox = Path("inbox")
+        inbox.mkdir(parents=True, exist_ok=True)
+        safe_slug = req.slug.lower().replace(" ", "-").replace("/", "-")
+        target = inbox / f"{safe_slug}.md"
+        now = datetime.now().isoformat().split('T')[0]
+        content = f"""---
+title: "{req.title}"
+slug: "{safe_slug}"
+created: "{now}"
+source: "edited-from-vault"
+---
+
+{req.content}"""
+        target.write_text(content, encoding="utf-8")
+        return {"success": True, "filename": target.name}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/providers")
@@ -381,20 +484,6 @@ Use the vault entries above as context when answering. If the user asks about so
         }
     except Exception as e:
         return {"error": str(e), "reply": None}
-
-
-from fastapi import UploadFile, File
-from fastapi.responses import FileResponse as FastAPIFileResponse
-
-
-class DocumentRequest(BaseModel):
-    title: str
-    slug: str
-    content: str
-
-
-class DocumentUpdateRequest(BaseModel):
-    content: str
 
 
 @app.post("/api/entries")

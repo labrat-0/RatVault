@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="RatVault - Terminal-based knowledge vault">
+    <meta name="description" content="RatVault - Terminal knowledge vault">
     <meta name="theme-color" content="#000000">
     <title>RatVault Terminal</title>
     <link rel="icon" type="image/png" href="/favicon.ico">
@@ -11,24 +11,27 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         :root {
-            --bg: #000000;
-            --fg: #ffffff;
-            --dim: #8a8a8a;
-            --dim2: #4a4a4a;
-            --border: #2a2a2a;
-            --mono: "JetBrains Mono", "Fira Code", "Cascadia Code", "Source Code Pro", "Menlo", "Consolas", ui-monospace, monospace;
+            --bg: #0a0a0a;
+            --bg2: #141414;
+            --fg: #f5f5f5;
+            --dim: #888;
+            --dim2: #333;
+            --border: #222;
+            --accent: #00ff41;
+            --accent-dim: rgba(0,255,65,0.15);
+            --danger: #ff4444;
+            --mono: "JetBrains Mono","Fira Code","Cascadia Code","Source Code Pro","Menlo","Consolas",ui-monospace,monospace;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         html, body {
-            height: 100%;
+            height: 100vh;
             background: var(--bg);
             color: var(--fg);
             font-family: var(--mono);
-            font-size: 17px;
+            font-size: 14px;
             line-height: 1.5;
-            letter-spacing: 0.02em;
             overflow: hidden;
         }
 
@@ -37,80 +40,72 @@
             flex-direction: column;
         }
 
-        /* Scanline texture */
+        /* Subtle scanline */
         body::before {
             content: "";
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: repeating-linear-gradient(
-                to bottom,
-                rgba(255,255,255,0.00) 0,
-                rgba(255,255,255,0.00) 2px,
-                rgba(255,255,255,0.02) 2px,
-                rgba(255,255,255,0.02) 3px
-            );
+            inset: 0;
+            background: repeating-linear-gradient(to bottom,
+                transparent 0, transparent 2px,
+                rgba(255,255,255,0.015) 2px, rgba(255,255,255,0.015) 3px);
             pointer-events: none;
-            z-index: 999;
-            mix-blend-mode: screen;
+            z-index: 1000;
         }
 
-        /* Header / Titlebar */
+        /* Header */
         header {
-            border-bottom: 1px solid var(--dim2);
-            padding: 12px 16px;
+            height: 36px;
+            min-height: 36px;
+            border-bottom: 1px solid var(--border);
+            padding: 0 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             background: var(--bg);
+            flex-shrink: 0;
         }
 
         .wordmark {
             font-weight: 800;
-            font-size: 14px;
+            font-size: 13px;
             letter-spacing: 0.22em;
             text-transform: uppercase;
-            color: var(--fg);
         }
 
-        .wordmark .bracket {
-            color: var(--dim);
-        }
+        .wordmark .bracket { color: var(--dim); }
 
         .meta {
             color: var(--dim);
-            font-size: 13px;
+            font-size: 11px;
             letter-spacing: 0.18em;
             text-transform: uppercase;
         }
 
-        /* Main container */
+        /* Main grid layout */
         main {
             flex: 1;
             display: grid;
-            grid-template-columns: 1fr 320px;
-            gap: 0;
-            padding: 0;
-            border: 3px solid var(--border);
-            margin: 0 6px;
-            background: var(--bg);
-            overflow: hidden;
+            grid-template-columns: 1fr 300px;
             min-height: 0;
+            overflow: hidden;
+            border: 2px solid var(--border);
+            margin: 4px 6px;
         }
 
-        /* Sidebar left mode */
         main.sidebar-left {
-            grid-template-columns: 320px 1fr;
+            grid-template-columns: 300px 1fr;
         }
 
-        /* View container */
+        main.sidebar-left .view-container { order: 2; }
+        main.sidebar-left .sidebar { order: 1; }
+
+        /* View container (left side normally) */
         .view-container {
             display: flex;
             flex-direction: column;
-            border-right: 1px solid var(--border);
+            min-width: 0;
             overflow: hidden;
+            border-right: 1px solid var(--border);
         }
 
         main.sidebar-left .view-container {
@@ -121,1778 +116,2096 @@
         .view {
             display: none;
             flex: 1;
-            overflow-y: auto;
-            padding: 12px;
-            border-bottom: 1px solid var(--border);
+            min-height: 0;
+            overflow: hidden;
         }
 
         .view.active {
             display: flex;
             flex-direction: column;
-            gap: 8px;
         }
 
-        /* Navigation bar */
-        .nav-bar {
-            display: flex;
-            border-bottom: 1px solid var(--border);
+        /* ===== CHAT VIEW (Grok-inspired) ===== */
+        #chat-view {
             background: var(--bg);
-        }
-
-        .nav-btn {
-            flex: 1;
-            background: var(--bg);
-            color: var(--fg);
-            border: none;
-            border-right: 1px solid var(--border);
-            border-bottom: 1px solid var(--border);
-            padding: 8px;
-            cursor: pointer;
-            font-family: var(--mono);
-            font-size: 13px;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            transition: background 0.1s;
-        }
-
-        .nav-btn:last-child {
-            border-right: none;
-        }
-
-        .nav-btn:hover {
-            background: var(--dim2);
-        }
-
-        .nav-btn.active {
-            background: var(--fg);
-            color: var(--bg);
-            font-weight: 700;
-        }
-
-        /* Chat section */
-        .chat-box {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            gap: 0;
         }
 
         .chat-messages {
             flex: 1;
             overflow-y: auto;
+            padding: 24px 16% 24px 16%;
             display: flex;
             flex-direction: column;
-            gap: 6px;
-            padding: 0;
-            border-bottom: 1px solid var(--border);
-            background-image:
-                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
-            background-size: 28px 28px;
-            background-position: 0 0, 0 0;
+            gap: 18px;
         }
 
-        .message {
-            padding: 8px 10px;
-            border-left: 2px solid var(--dim2);
+        @media (max-width: 1100px) {
+            .chat-messages { padding: 20px 24px; }
+        }
+
+        .msg {
             display: flex;
-            gap: 8px;
+            gap: 12px;
             align-items: flex-start;
-            font-size: 15px;
-            line-height: 1.4;
-            border-radius: 3px;
+            animation: fadeIn 0.25s ease-out;
         }
 
-        .message.user {
-            background: rgba(255, 255, 255, 0.08);
-            border-left-color: rgba(0, 255, 65, 0.3);
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        .message.assistant {
-            background: rgba(255, 255, 255, 0.02);
-            border-left-color: var(--fg);
-        }
-
-        .message.error {
-            border-left-color: #ff4444;
-            background: rgba(255, 68, 68, 0.05);
-        }
-
-        .message-label {
-            color: var(--dim);
+        .msg-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
             font-weight: 700;
-            min-width: 60px;
-            white-space: nowrap;
             flex-shrink: 0;
+            border: 1px solid var(--dim2);
         }
 
-        .message.user .message-label {
+        .msg.user .msg-avatar {
+            background: var(--accent-dim);
+            color: var(--accent);
+            border-color: rgba(0,255,65,0.4);
+        }
+
+        .msg.assistant .msg-avatar {
+            background: var(--bg2);
             color: var(--fg);
         }
 
-        .message-bubble {
-            word-wrap: break-word;
-            white-space: pre-wrap;
-            flex: 1;
+        .msg.error .msg-avatar {
+            background: rgba(255,68,68,0.15);
+            color: var(--danger);
+            border-color: rgba(255,68,68,0.4);
         }
 
-        /* Chat input */
-        .chat-input-section {
-            display: flex;
-            gap: 6px;
-            padding: 8px;
+        .msg-body {
+            flex: 1;
+            min-width: 0;
+            padding-top: 4px;
+        }
+
+        .msg-author {
+            font-size: 11px;
+            color: var(--dim);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            font-weight: 700;
+        }
+
+        .msg.user .msg-author { color: var(--accent); }
+
+        .msg-content {
+            font-size: 14px;
+            line-height: 1.6;
+            word-wrap: break-word;
+        }
+
+        .msg-content p { margin: 6px 0; }
+        .msg-content code {
+            background: var(--bg2);
+            border: 1px solid var(--dim2);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 12px;
+            color: var(--accent);
+        }
+        .msg-content pre {
+            background: var(--bg2);
+            border: 1px solid var(--dim2);
+            padding: 10px 12px;
+            border-radius: 4px;
+            margin: 8px 0;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .msg-content pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            color: var(--fg);
+        }
+        .msg-content ul, .msg-content ol { margin: 6px 0 6px 22px; }
+
+        .chat-input-wrap {
+            padding: 12px 16% 16px 16%;
             border-top: 1px solid var(--border);
             background: var(--bg);
         }
 
-        #chat-input {
-            flex: 1;
-            background: rgba(255, 255, 255, 0.03);
+        @media (max-width: 1100px) {
+            .chat-input-wrap { padding: 12px 24px 16px 24px; }
+        }
+
+        .chat-input-box {
+            position: relative;
+            background: var(--bg2);
             border: 1px solid var(--dim2);
+            border-radius: 8px;
+            transition: border-color 0.15s;
+        }
+
+        .chat-input-box:focus-within {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(0,255,65,0.1);
+        }
+
+        #chat-input {
+            width: 100%;
+            min-height: 52px;
+            max-height: 200px;
+            background: transparent;
             color: var(--fg);
-            padding: 8px 10px;
+            border: none;
+            outline: none;
+            padding: 14px 60px 14px 16px;
             font-family: var(--mono);
             font-size: 14px;
-            height: 40px;
-            transition: border-color 0.1s;
+            resize: none;
+            line-height: 1.5;
         }
 
-        #chat-input:focus {
-            outline: none;
-            border-color: var(--fg);
-            background: rgba(255, 255, 255, 0.06);
-        }
+        #chat-input::placeholder { color: var(--dim); }
 
         #chat-send {
-            background: rgba(0, 255, 65, 0.25);
-            color: var(--fg);
-            border: 1px solid rgba(0, 255, 65, 0.3);
-            padding: 8px 14px;
-            font-family: var(--mono);
-            font-weight: 700;
-            font-size: 13px;
+            position: absolute;
+            right: 8px;
+            bottom: 8px;
+            width: 38px;
+            height: 38px;
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            border-radius: 6px;
             cursor: pointer;
+            font-size: 18px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.15s;
+        }
+
+        #chat-send:hover { opacity: 0.85; }
+        #chat-send:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .chat-hint {
+            font-size: 10px;
+            color: var(--dim);
             letter-spacing: 0.1em;
             text-transform: uppercase;
-            transition: opacity 0.2s;
+            margin-top: 6px;
+            text-align: center;
         }
 
-        #chat-send:hover {
-            opacity: 0.9;
-            background: rgba(0, 255, 65, 0.35);
+        /* ===== VAULT VIEW ===== */
+        #vault-view {
+            padding: 0;
         }
 
-        /* Search view */
-        #search-view {
+        .vault-toolbar {
+            display: flex;
+            gap: 6px;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg2);
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .vault-toolbar input {
+            flex: 1;
+            min-width: 180px;
+            background: var(--bg);
+            border: 1px solid var(--dim2);
+            color: var(--fg);
+            padding: 6px 10px;
+            font-family: var(--mono);
+            font-size: 12px;
+            border-radius: 4px;
+        }
+
+        .vault-toolbar input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .toolbtn {
+            background: var(--bg);
+            border: 1px solid var(--dim2);
+            color: var(--fg);
+            padding: 6px 10px;
+            font-family: var(--mono);
+            font-size: 11px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.15s;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+        }
+
+        .toolbtn:hover {
+            border-color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        .toolbtn.primary {
+            background: var(--accent-dim);
+            border-color: rgba(0,255,65,0.4);
+            color: var(--accent);
+        }
+
+        .toolbtn.primary:hover {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        .vault-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg);
+        }
+
+        .vault-tab {
+            background: transparent;
+            border: none;
+            color: var(--dim);
+            padding: 10px 16px;
+            font-family: var(--mono);
+            font-size: 12px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border-bottom: 2px solid transparent;
+            transition: color 0.15s;
+        }
+
+        .vault-tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        .vault-tab:hover { color: var(--fg); }
+
+        .vault-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
             gap: 8px;
         }
 
-        #search-input {
-            background: rgba(255, 255, 255, 0.03);
+        .doc-item {
+            border: 1px solid var(--dim2);
+            background: var(--bg2);
+            padding: 12px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .doc-item:hover {
+            border-color: var(--accent);
+            background: var(--bg);
+        }
+
+        .doc-item-info { flex: 1; min-width: 0; }
+
+        .doc-item-title {
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 4px;
+            color: var(--fg);
+        }
+
+        .doc-item-meta {
+            font-size: 11px;
+            color: var(--dim);
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .doc-item-meta .badge {
+            background: var(--bg);
+            border: 1px solid var(--dim2);
+            padding: 1px 6px;
+            border-radius: 3px;
+        }
+
+        .doc-item-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .doc-action-btn {
+            background: transparent;
+            border: 1px solid var(--dim2);
+            color: var(--dim);
+            padding: 4px 8px;
+            font-family: var(--mono);
+            font-size: 10px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        .doc-action-btn:hover {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .empty-state {
+            color: var(--dim);
+            padding: 32px 16px;
+            text-align: center;
+            font-size: 13px;
+        }
+
+        /* ===== DOCUMENT EDITOR ===== */
+        #document-view {
+            padding: 0;
+        }
+
+        .doc-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .doc-title-input {
+            flex: 1;
+            min-width: 200px;
+            background: var(--bg);
+            color: var(--fg);
+            border: 1px solid var(--dim2);
+            padding: 8px 12px;
+            font-family: var(--mono);
+            font-size: 16px;
+            font-weight: 700;
+            border-radius: 4px;
+        }
+
+        .doc-title-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .doc-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .doc-mode-bar {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg);
+        }
+
+        .doc-mode-btn {
+            background: transparent;
+            border: none;
+            color: var(--dim);
+            padding: 8px 14px;
+            font-family: var(--mono);
+            font-size: 11px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            border-bottom: 2px solid transparent;
+        }
+
+        .doc-mode-btn.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        .doc-toolbar {
+            display: flex;
+            gap: 4px;
+            padding: 6px 12px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg2);
+            flex-wrap: wrap;
+        }
+
+        .doc-toolbar button {
+            background: var(--bg);
             border: 1px solid var(--dim2);
             color: var(--fg);
-            padding: 8px;
+            padding: 5px 10px;
             font-family: var(--mono);
             font-size: 12px;
-            margin-bottom: 4px;
+            cursor: pointer;
+            border-radius: 3px;
+            min-width: 32px;
         }
 
-        #search-input:focus {
+        .doc-toolbar button:hover {
+            border-color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        .doc-toolbar .sep {
+            width: 1px;
+            background: var(--dim2);
+            margin: 0 4px;
+        }
+
+        .doc-panes {
+            flex: 1;
+            min-height: 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            overflow: hidden;
+        }
+
+        .doc-panes.mode-edit { grid-template-columns: 1fr; }
+        .doc-panes.mode-edit #doc-preview { display: none; }
+        .doc-panes.mode-preview { grid-template-columns: 1fr; }
+        .doc-panes.mode-preview #doc-editor { display: none; }
+
+        #doc-editor {
+            background: var(--bg);
+            color: var(--fg);
+            border: none;
+            border-right: 1px solid var(--border);
+            padding: 16px;
+            font-family: var(--mono);
+            font-size: 13px;
+            resize: none;
             outline: none;
-            border-color: var(--fg);
-            background: rgba(255, 255, 255, 0.06);
+            line-height: 1.6;
         }
 
-        .search-results {
+        #doc-preview {
+            background: var(--bg);
+            padding: 16px 24px;
+            overflow-y: auto;
+            line-height: 1.7;
+        }
+
+        #doc-preview h1 { font-size: 24px; margin: 14px 0 8px; }
+        #doc-preview h2 { font-size: 20px; margin: 12px 0 6px; }
+        #doc-preview h3 { font-size: 16px; margin: 10px 0 4px; }
+        #doc-preview p { margin: 8px 0; }
+        #doc-preview code {
+            background: var(--bg2);
+            border: 1px solid var(--dim2);
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 12px;
+            color: var(--accent);
+        }
+        #doc-preview pre {
+            background: var(--bg2);
+            border: 1px solid var(--dim2);
+            padding: 12px;
+            border-radius: 4px;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        #doc-preview pre code { background: none; border: none; padding: 0; color: var(--fg); }
+        #doc-preview ul, #doc-preview ol { margin: 8px 0 8px 22px; }
+        #doc-preview a { color: var(--accent); text-decoration: none; }
+        #doc-preview a:hover { text-decoration: underline; }
+        #doc-preview img, #doc-preview video {
+            max-width: 100%;
+            margin: 8px 0;
+            border: 1px solid var(--dim2);
+            border-radius: 4px;
+        }
+        #doc-preview blockquote {
+            border-left: 3px solid var(--dim2);
+            padding-left: 12px;
+            margin: 8px 0;
+            color: var(--dim);
+        }
+
+        /* ===== INBOX VIEW ===== */
+        #inbox-view {
+            padding: 0;
+        }
+
+        .inbox-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
             display: flex;
             flex-direction: column;
             gap: 6px;
-            overflow-y: auto;
         }
 
-        .result-item {
+        .inbox-item {
             border: 1px solid var(--dim2);
-            padding: 8px;
-            background: rgba(255, 255, 255, 0.02);
-            cursor: pointer;
-            transition: border-color 0.1s;
+            background: var(--bg2);
+            padding: 10px 12px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
         }
 
-        .result-item:hover {
-            border-color: var(--fg);
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .result-item h4 {
+        .inbox-item-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--bg);
+            border: 1px solid var(--dim2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-size: 14px;
-            font-weight: 700;
-            margin-bottom: 4px;
-            color: var(--fg);
+            border-radius: 3px;
+            flex-shrink: 0;
         }
 
-        .result-item p {
+        .inbox-item-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .inbox-item-name {
             font-size: 13px;
-            color: var(--dim);
-            line-height: 1.4;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        /* Sidebar */
+        .inbox-item-meta {
+            font-size: 10px;
+            color: var(--dim);
+            margin-top: 2px;
+        }
+
+        /* ===== SIDEBAR ===== */
         .sidebar {
             display: flex;
             flex-direction: column;
-            gap: 0;
-            height: 100%;
+            background: var(--bg);
+            min-height: 0;
+            overflow: hidden;
         }
 
         .sidebar-scroll {
             flex: 1;
             overflow-y: auto;
             overflow-x: hidden;
+            min-height: 0;
         }
 
-        .sidebar-card {
+        .sb-card {
             border-bottom: 1px solid var(--border);
-            padding: 12px;
-            border-left: 1px solid var(--border);
+            padding: 10px 12px;
         }
 
-        .sidebar-card:first-child {
-            border-top: 1px solid var(--border);
-        }
-
-        .card-title {
-            font-size: 13px;
+        .sb-card-title {
+            font-size: 10px;
             font-weight: 700;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.15em;
             text-transform: uppercase;
-            color: var(--fg);
+            color: var(--dim);
             margin-bottom: 8px;
-            border-bottom: 1px solid var(--dim2);
-            padding-bottom: 6px;
         }
 
-        .card-row {
+        .sb-row {
             display: flex;
             justify-content: space-between;
-            font-size: 13px;
-            padding: 4px 0;
-            border-bottom: 1px solid var(--dim2);
+            font-size: 12px;
+            padding: 3px 0;
         }
 
-        .card-row:last-child {
-            border-bottom: none;
+        .sb-label { color: var(--dim); }
+        .sb-value { font-weight: 700; }
+
+        /* Time card */
+        .sb-time {
+            text-align: center;
+            padding: 12px;
         }
 
-        .card-label {
-            color: var(--dim);
-        }
-
-        .card-value {
+        .sb-time-clock {
+            font-size: 22px;
             font-weight: 700;
-            color: var(--fg);
+            color: var(--accent);
+            font-family: var(--mono);
+            letter-spacing: 0.05em;
         }
 
-        .card-text {
-            font-size: 13px;
+        .sb-time-date {
+            font-size: 11px;
             color: var(--dim);
-            line-height: 1.4;
-            margin-top: 6px;
+            margin-top: 2px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
         }
 
-        /* Analytics view */
-        #analytics-view {
+        /* Profile */
+        .sb-profile {
+            padding: 0;
+            position: relative;
+        }
+
+        .sb-profile-media {
+            width: 100%;
+            height: 140px;
+            overflow: hidden;
+            background: var(--bg2);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .sb-profile-media img,
+        .sb-profile-media video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            filter: grayscale(0.4) contrast(1.05);
+        }
+
+        .sb-profile-fallback {
+            color: var(--dim);
+            font-size: 11px;
+            text-align: center;
+            padding: 16px;
+        }
+
+        .sb-profile-actions {
+            display: flex;
+            gap: 4px;
+            padding: 6px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg2);
+        }
+
+        .sb-profile-btn {
+            flex: 1;
+            background: var(--bg);
+            border: 1px solid var(--dim2);
+            color: var(--fg);
+            padding: 5px 8px;
+            font-family: var(--mono);
+            font-size: 10px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-radius: 3px;
+            text-align: center;
+        }
+
+        .sb-profile-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* Activity grid */
+        .activity-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 16px);
+            grid-template-rows: repeat(7, 16px);
+            gap: 3px;
+            margin: 0 auto 6px;
+            justify-content: center;
+            width: max-content;
+        }
+
+        .activity-cell {
+            width: 16px;
+            height: 16px;
+            border-radius: 2px;
+            background: var(--dim2);
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+
+        .activity-cell:hover { opacity: 0.7; }
+        .activity-cell.l1 { background: rgba(0,255,65,0.25); }
+        .activity-cell.l2 { background: rgba(0,255,65,0.5); }
+        .activity-cell.l3 { background: rgba(0,255,65,0.75); }
+        .activity-cell.l4 { background: var(--accent); }
+
+        .activity-legend {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            font-size: 9px;
+            color: var(--dim);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-top: 4px;
+        }
+
+        .legend-sq {
+            width: 8px;
+            height: 8px;
+            border-radius: 1px;
+        }
+
+        /* Nav buttons */
+        .nav-bar {
+            display: flex;
+            flex-direction: column;
+            border-top: 2px solid var(--dim2);
+            background: var(--bg);
+            flex-shrink: 0;
+        }
+
+        .nav-btn {
+            background: var(--bg);
+            color: var(--fg);
+            border: none;
+            border-bottom: 1px solid var(--border);
+            padding: 12px 14px;
+            cursor: pointer;
+            font-family: var(--mono);
+            font-size: 12px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            text-align: left;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
             gap: 8px;
         }
 
-        .stat-block {
-            border: 1px solid var(--dim2);
-            padding: 8px;
-            background: rgba(255, 255, 255, 0.02);
-        }
+        .nav-btn:last-child { border-bottom: none; }
+        .nav-btn:hover { background: var(--bg2); color: var(--accent); }
 
-        .stat-label {
-            font-size: 13px;
-            color: var(--dim);
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            margin-bottom: 4px;
-        }
-
-        .stat-value {
-            font-size: 24px;
+        .nav-btn.active {
+            background: var(--accent);
+            color: var(--bg);
             font-weight: 700;
-            color: var(--fg);
+        }
+
+        .nav-btn-icon {
+            width: 16px;
+            text-align: center;
+            font-size: 13px;
         }
 
         /* Modal */
         .modal-overlay {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
+            inset: 0;
+            background: rgba(0,0,0,0.85);
             z-index: 10000;
             align-items: center;
             justify-content: center;
+            padding: 20px;
         }
 
-        .modal-overlay.active {
-            display: flex;
-        }
+        .modal-overlay.active { display: flex; }
 
         .modal {
             background: var(--bg);
-            border: 1px solid var(--fg);
-            padding: 12px;
-            max-width: 500px;
-            width: 90%;
+            border: 1px solid var(--dim2);
+            border-radius: 8px;
+            padding: 20px;
+            max-width: 540px;
+            width: 100%;
             max-height: 90vh;
             overflow-y: auto;
-            overflow-x: visible;
         }
 
         .modal h2 {
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 700;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.15em;
             text-transform: uppercase;
-            margin-bottom: 12px;
+            margin-bottom: 16px;
             border-bottom: 1px solid var(--dim2);
-            padding-bottom: 8px;
+            padding-bottom: 10px;
+            color: var(--accent);
         }
 
-        .setting-group {
-            margin-bottom: 12px;
+        .field-group {
+            margin-bottom: 14px;
         }
 
-        .setting-group label {
+        .field-group label {
             display: block;
-            font-size: 13px;
+            font-size: 11px;
             font-weight: 700;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.12em;
             text-transform: uppercase;
             margin-bottom: 4px;
-            color: var(--fg);
+            color: var(--dim);
         }
 
-        .setting-group select,
-        .setting-group input {
+        .field-group input,
+        .field-group select,
+        .field-group textarea {
             width: 100%;
-            background: rgba(255, 255, 255, 0.03);
+            background: var(--bg2);
             border: 1px solid var(--dim2);
             color: var(--fg);
-            padding: 6px;
+            padding: 8px 10px;
             font-family: var(--mono);
             font-size: 13px;
+            border-radius: 4px;
         }
 
-        .setting-group select:focus,
-        .setting-group input:focus {
+        .field-group input:focus,
+        .field-group select:focus,
+        .field-group textarea:focus {
             outline: none;
-            border-color: var(--fg);
-            background: rgba(255, 255, 255, 0.06);
+            border-color: var(--accent);
         }
 
-        .setting-hint {
+        .field-hint {
             font-size: 10px;
             color: var(--dim);
             margin-top: 3px;
         }
 
+        .field-row { display: flex; gap: 6px; }
+        .field-row > * { flex: 1; }
+        .field-row > .grow { flex: 2; }
+
         .modal-actions {
             display: flex;
-            gap: 6px;
-            margin-top: 12px;
+            gap: 8px;
+            margin-top: 16px;
             justify-content: flex-end;
             border-top: 1px solid var(--dim2);
-            padding-top: 12px;
+            padding-top: 14px;
         }
 
         .btn {
-            padding: 6px 12px;
+            padding: 8px 14px;
             font-family: var(--mono);
             font-weight: 700;
-            font-size: 13px;
-            letter-spacing: 0.1em;
+            font-size: 11px;
+            letter-spacing: 0.12em;
             text-transform: uppercase;
             cursor: pointer;
             border: 1px solid var(--dim2);
             background: var(--bg);
             color: var(--fg);
-            transition: all 0.1s;
+            border-radius: 4px;
+            transition: all 0.15s;
         }
 
         .btn:hover {
-            border-color: var(--fg);
-            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--accent);
+            color: var(--accent);
         }
 
-        .btn-primary {
-            background: var(--fg);
+        .btn.primary {
+            background: var(--accent);
             color: var(--bg);
-            border-color: var(--fg);
+            border-color: var(--accent);
         }
 
-        .btn-primary:hover {
-            opacity: 0.8;
+        .btn.primary:hover {
+            opacity: 0.85;
+            color: var(--bg);
         }
 
-        /* Status bar */
+        .status-msg {
+            font-size: 11px;
+            color: var(--dim);
+            padding: 8px 10px;
+            border: 1px solid var(--dim2);
+            border-radius: 4px;
+            background: var(--bg2);
+            margin-bottom: 10px;
+            min-height: 32px;
+        }
+
+        /* Footer */
         footer {
-            border-top: 1px solid var(--fg);
-            background: var(--dim2);
-            display: grid;
-            grid-template-columns: auto auto 1fr auto auto auto;
-            gap: 0;
-            height: 32px;
-            font-size: 13px;
+            height: 28px;
+            min-height: 28px;
+            border-top: 1px solid var(--dim2);
+            background: var(--bg2);
+            display: flex;
+            font-size: 11px;
             letter-spacing: 0.05em;
+            flex-shrink: 0;
         }
 
-        .status-cell {
+        .stat-cell {
             padding: 0 12px;
             display: flex;
             align-items: center;
+            gap: 6px;
             border-right: 1px solid var(--dim2);
             white-space: nowrap;
         }
 
-        .status-cell:last-child {
-            border-right: none;
-        }
-
-        .status-cell.invert {
-            background: var(--fg);
+        .stat-cell.fill { flex: 1; color: var(--dim); }
+        .stat-cell.invert {
+            background: var(--accent);
             color: var(--bg);
             font-weight: 700;
         }
 
-        .status-dim {
-            color: var(--dim);
+        .token-bar-bg {
+            width: 70px;
+            height: 8px;
+            background: var(--bg);
+            border: 1px solid var(--dim2);
+            border-radius: 1px;
+            overflow: hidden;
+        }
+
+        .token-bar-fill {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.3s;
         }
 
         /* Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--dim2); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--dim); }
 
-        ::-webkit-scrollbar-track {
-            background: var(--bg);
-            border-left: 1px solid var(--border);
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--dim2);
-            border: 1px solid var(--border);
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--dim);
-        }
-
-        /* Contribution Grid */
-        #contribution-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            grid-template-rows: repeat(7, 1fr);
-            gap: 3px;
-            margin-bottom: 8px;
-            width: 100%;
-        }
-
-        .contribution-cell {
-            aspect-ratio: 1;
-            width: 100%;
-            border-radius: 2px;
-            cursor: pointer;
-            transition: opacity 0.2s;
-            position: relative;
-        }
-
-        .contribution-cell:hover {
-            opacity: 0.8;
-        }
-
-        .contribution-cell.empty {
-            background: var(--dim2);
-        }
-
-        .contribution-cell.low {
-            background: rgba(0, 180, 60, 0.4);
-        }
-
-        .contribution-cell.medium {
-            background: rgba(0, 220, 80, 0.7);
-        }
-
-        .contribution-cell.high {
-            background: rgba(0, 255, 65, 1.0);
-        }
-
-        .activity-legend {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            font-size: 11px;
-            color: var(--dim);
-            margin-top: 4px;
-        }
-
-        .legend-square {
-            width: 8px;
-            height: 8px;
-            border-radius: 1px;
-        }
-
-        /* Profile media styling */
-        #profile-media img,
-        #profile-media video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-
-        /* Preview pane markdown styling */
-        #doc-preview h1, #doc-preview h2, #doc-preview h3 {
-            margin-top: 12px;
-            margin-bottom: 6px;
+        /* Toast */
+        #toast {
+            position: fixed;
+            bottom: 40px;
+            right: 20px;
+            background: var(--bg2);
+            border: 1px solid var(--accent);
             color: var(--fg);
-        }
-
-        #doc-preview h1 { font-size: 24px; font-weight: 700; }
-        #doc-preview h2 { font-size: 20px; font-weight: 700; }
-        #doc-preview h3 { font-size: 16px; font-weight: 700; }
-
-        #doc-preview p { margin: 8px 0; color: var(--fg); }
-
-        #doc-preview code {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid var(--dim2);
-            padding: 2px 4px;
-            border-radius: 2px;
+            padding: 10px 16px;
+            border-radius: 4px;
             font-size: 12px;
-            color: rgba(0,255,65,0.8);
+            z-index: 11000;
+            display: none;
+            animation: slideIn 0.2s ease-out;
         }
 
-        #doc-preview pre {
-            background: rgba(0,0,0,0.3);
-            border: 1px solid var(--dim2);
-            padding: 12px;
-            border-radius: 3px;
-            margin: 12px 0;
-            overflow-x: auto;
-        }
-
-        #doc-preview pre code {
-            background: none;
-            border: none;
-            padding: 0;
-            color: var(--fg);
-        }
-
-        #doc-preview ul, #doc-preview ol {
-            margin: 8px 0 8px 20px;
-        }
-
-        #doc-preview li { margin: 4px 0; color: var(--fg); }
-
-        #doc-preview a {
-            color: rgba(0,255,65,0.8);
-            text-decoration: none;
-            border-bottom: 1px dotted rgba(0,255,65,0.3);
-        }
-
-        #doc-preview a:hover {
-            border-bottom: 1px solid rgba(0,255,65,0.6);
-        }
-
-        #doc-preview img, #doc-preview video {
-            max-width: 100%;
-            margin: 8px 0;
-            border: 1px solid var(--dim2);
+        @keyframes slideIn {
+            from { transform: translateX(20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
 
         /* Responsive */
         @media (max-width: 768px) {
-            main {
-                grid-template-columns: 1fr;
-            }
-
-            .view-container {
-                border-right: none;
-            }
-
-            .sidebar {
-                border-top: 1px solid var(--border);
-            }
+            main { grid-template-columns: 1fr; }
+            main.sidebar-left { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
         }
     </style>
 </head>
 <body>
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').catch(() => {});
-            });
-        }
-    </script>
 
-    <!-- Header -->
-    <header>
-        <div class="wordmark"><span class="bracket">[</span> RAT VAULT <span class="bracket">]</span></div>
-        <div class="meta">terminal · v1.0</div>
-    </header>
+<header>
+    <div class="wordmark"><span class="bracket">[</span> RAT VAULT <span class="bracket">]</span></div>
+    <div class="meta">terminal · v1.1</div>
+</header>
 
-    <!-- Main -->
-    <main>
-        <!-- View Container -->
-        <div class="view-container">
-            <!-- Chat View -->
-            <div class="view active" id="chat-view">
-                <div class="chat-box">
-                    <div class="chat-messages" id="chat-messages">
-                        <div class="message assistant">
-                            <span class="message-label">&gt;</span>
-                            <div class="message-bubble">Welcome to RatVault. Query your knowledge vault or ask for help.</div>
-                        </div>
-                    </div>
-                    <div class="chat-input-section">
-                        <input type="text" id="chat-input" placeholder="query vault..." />
-                        <button id="chat-send">Send</button>
+<main>
+    <!-- View Container -->
+    <div class="view-container">
+
+        <!-- CHAT VIEW (Grok-inspired) -->
+        <div class="view active" id="chat-view">
+            <div class="chat-messages" id="chat-messages">
+                <div class="msg assistant">
+                    <div class="msg-avatar">RV</div>
+                    <div class="msg-body">
+                        <div class="msg-author">RatVault</div>
+                        <div class="msg-content">Welcome to your knowledge vault. Ask me anything about your notes.</div>
                     </div>
                 </div>
             </div>
-
-            <!-- Vault/Documents View -->
-            <div class="view" id="vault-view">
-                <div style="display: flex; flex-direction: column; gap: 8px; height: 100%; overflow: hidden;">
-                    <div style="display: flex; gap: 4px;">
-                        <input type="text" id="vault-search" placeholder="search documents..." style="flex: 1; padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--fg); font-family: var(--mono);">
-                        <button id="vault-new-doc" style="padding: 6px 12px; background: rgba(0,255,65,0.15); border: 1px solid rgba(0,255,65,0.3); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 12px;">+ New</button>
-                        <button id="vault-refresh" style="padding: 6px 12px; background: rgba(0,255,65,0.15); border: 1px solid rgba(0,255,65,0.3); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 12px;">Refresh</button>
-                    </div>
-                    <div id="vault-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;"></div>
+            <div class="chat-input-wrap">
+                <div class="chat-input-box">
+                    <textarea id="chat-input" placeholder="Ask your vault..." rows="1"></textarea>
+                    <button id="chat-send" title="Send (Enter)">↑</button>
                 </div>
-            </div>
-
-            <!-- Document View (Split Editor) -->
-            <div class="view" id="document-view">
-                <div style="display: flex; flex-direction: column; height: 100%; overflow: hidden;">
-                    <!-- Document Header -->
-                    <div style="padding: 12px 16px; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.3);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                            <h1 id="doc-title" style="margin: 0; font-size: 20px; color: var(--fg);">Loading...</h1>
-                            <div style="display: flex; gap: 4px;">
-                                <button id="doc-new" style="padding: 6px 12px; background: rgba(0,255,65,0.15); border: 1px solid rgba(0,255,65,0.3); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 12px; text-transform: uppercase;">+ New</button>
-                                <button id="doc-save" style="padding: 6px 12px; background: rgba(0,255,65,0.15); border: 1px solid rgba(0,255,65,0.3); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 12px; text-transform: uppercase; display: none;">💾 Save</button>
-                                <button id="doc-back" style="background: none; border: 1px solid var(--border); color: var(--fg); cursor: pointer; padding: 4px 8px; font-family: var(--mono); font-size: 12px;">← Back</button>
-                            </div>
-                        </div>
-                        <div style="display: flex; gap: 8px; font-size: 12px;">
-                            <button id="doc-mode-edit" class="doc-mode-btn active" style="padding: 4px 8px; background: var(--fg); color: var(--bg); border: 1px solid var(--fg); cursor: pointer; font-family: var(--mono); font-size: 11px; text-transform: uppercase;">Edit</button>
-                            <button id="doc-mode-preview" class="doc-mode-btn" style="padding: 4px 8px; background: transparent; color: var(--fg); border: 1px solid var(--dim2); cursor: pointer; font-family: var(--mono); font-size: 11px; text-transform: uppercase;">Preview</button>
-                            <button id="doc-mode-split" class="doc-mode-btn" style="padding: 4px 8px; background: transparent; color: var(--fg); border: 1px solid var(--dim2); cursor: pointer; font-family: var(--mono); font-size: 11px; text-transform: uppercase;">Split</button>
-                        </div>
-                    </div>
-
-                    <!-- Toolbar -->
-                    <div id="doc-toolbar" style="padding: 8px 12px; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.2); display: flex; gap: 4px; overflow-x: auto; flex-wrap: wrap;">
-                        <button id="doc-bold" title="Bold" style="padding: 4px 8px; background: transparent; border: 1px solid var(--dim2); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 12px; font-weight: 700;">B</button>
-                        <button id="doc-italic" title="Italic" style="padding: 4px 8px; background: transparent; border: 1px solid var(--dim2); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 12px; font-style: italic;">I</button>
-                        <button id="doc-link" title="Link" style="padding: 4px 8px; background: transparent; border: 1px solid var(--dim2); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 11px;">🔗</button>
-                        <button id="doc-image" title="Image" style="padding: 4px 8px; background: transparent; border: 1px solid var(--dim2); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 11px;">🖼</button>
-                        <button id="doc-video" title="Video" style="padding: 4px 8px; background: transparent; border: 1px solid var(--dim2); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 11px;">🎬</button>
-                        <span style="border-right: 1px solid var(--dim2); margin: 0 2px;"></span>
-                        <button id="doc-h1" title="Heading 1" style="padding: 4px 8px; background: transparent; border: 1px solid var(--dim2); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 11px;">H1</button>
-                        <button id="doc-h2" title="Heading 2" style="padding: 4px 8px; background: transparent; border: 1px solid var(--dim2); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 11px;">H2</button>
-                        <button id="doc-code" title="Code" style="padding: 4px 8px; background: transparent; border: 1px solid var(--dim2); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 11px;">&lt;/&gt;</button>
-                    </div>
-
-                    <!-- Editor Panes -->
-                    <div style="flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 0; overflow: hidden;" id="doc-panes">
-                        <!-- Editor Pane -->
-                        <textarea id="doc-editor" style="flex: 1; padding: 12px; background: var(--bg); color: var(--fg); border: none; border-right: 1px solid var(--border); font-family: var(--mono); font-size: 14px; resize: none; overflow-y: auto; white-space: pre; word-wrap: normal;"></textarea>
-                        <!-- Preview Pane -->
-                        <div id="doc-preview" style="flex: 1; padding: 12px; background: var(--bg); color: var(--fg); overflow-y: auto; line-height: 1.8; border-left: 1px solid var(--border);"></div>
-                    </div>
-                </div>
-            </div>
-
-                </div>
+                <div class="chat-hint">Enter to send · Shift+Enter for newline</div>
             </div>
         </div>
 
-        <!-- Sidebar -->
-        <div class="sidebar">
-          <div class="sidebar-scroll">
-            <!-- Local Time (New) -->
-            <div class="sidebar-card">
-                <div style="text-align: center; padding: 8px 0;">
-                    <div id="local-time" style="font-size: 18px; font-weight: 700; color: rgba(0,255,65,0.6); margin-bottom: 4px; font-family: 'Courier New', monospace;">--:--:--</div>
-                    <div id="local-date" style="font-size: 12px; color: var(--dim);">...</div>
+        <!-- VAULT VIEW -->
+        <div class="view" id="vault-view">
+            <div class="vault-toolbar">
+                <input type="text" id="vault-search" placeholder="search vault...">
+                <button class="toolbtn primary" id="vault-new">+ New Doc</button>
+                <button class="toolbtn" id="vault-upload">↑ Upload</button>
+                <button class="toolbtn" id="vault-refresh">↻ Refresh</button>
+                <input type="file" id="vault-upload-input" multiple accept="*/*" style="display:none">
+            </div>
+            <div class="vault-tabs">
+                <button class="vault-tab active" data-tab="notes">📚 Wiki</button>
+                <button class="vault-tab" data-tab="inbox">📥 Inbox</button>
+            </div>
+            <div class="vault-list" id="vault-list-notes"></div>
+            <div class="vault-list" id="vault-list-inbox" style="display:none"></div>
+        </div>
+
+        <!-- DOCUMENT EDITOR VIEW -->
+        <div class="view" id="document-view">
+            <div class="doc-header">
+                <input type="text" id="doc-title" class="doc-title-input" placeholder="Document title...">
+                <div class="doc-actions">
+                    <button class="toolbtn primary" id="doc-save">💾 Save</button>
+                    <button class="toolbtn" id="doc-new">+ New</button>
+                    <button class="toolbtn" id="doc-back">← Back</button>
                 </div>
             </div>
+            <div class="doc-mode-bar">
+                <button class="doc-mode-btn" data-mode="edit">Edit</button>
+                <button class="doc-mode-btn active" data-mode="split">Split</button>
+                <button class="doc-mode-btn" data-mode="preview">Preview</button>
+            </div>
+            <div class="doc-toolbar">
+                <button data-md="bold" title="Bold"><b>B</b></button>
+                <button data-md="italic" title="Italic"><i>I</i></button>
+                <button data-md="code" title="Code">&lt;/&gt;</button>
+                <span class="sep"></span>
+                <button data-md="h1" title="H1">H1</button>
+                <button data-md="h2" title="H2">H2</button>
+                <button data-md="h3" title="H3">H3</button>
+                <span class="sep"></span>
+                <button data-md="link" title="Link">🔗</button>
+                <button data-md="image" title="Image">🖼</button>
+                <button data-md="video" title="Video">🎬</button>
+                <span class="sep"></span>
+                <button data-md="ul" title="List">• List</button>
+                <button data-md="ol" title="Numbered">1. Num</button>
+                <button data-md="quote" title="Quote">❝</button>
+            </div>
+            <div class="doc-panes mode-split" id="doc-panes">
+                <textarea id="doc-editor" placeholder="# Title
 
-            <!-- Profile Media -->
-            <div class="sidebar-card" style="padding:0; overflow:hidden; border-bottom:1px solid var(--border); height: 160px; flex-shrink: 0;" id="profile-container">
-                <!-- Profile media container -->
-                <div id="profile-media" style="width:100%; height:100%;">
-                    <video
-                        id="profile-video"
-                        autoplay loop muted playsinline
-                        style="width:100%; height:100%; object-fit:cover; display:block; filter:grayscale(1) contrast(1.1);"
-                    >
+Write your content here...
+
+Save → goes to inbox/ for re-ingestion."></textarea>
+                <div id="doc-preview"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <div class="sidebar-scroll">
+            <!-- Time -->
+            <div class="sb-card sb-time">
+                <div class="sb-time-clock" id="sb-time">--:--:--</div>
+                <div class="sb-time-date" id="sb-date">...</div>
+            </div>
+
+            <!-- Profile -->
+            <div class="sb-profile">
+                <div class="sb-profile-media" id="sb-profile-media">
+                    <video id="sb-profile-video" autoplay loop muted playsinline>
                         <source src="/assets/labrat-vid.mp4" type="video/mp4">
                     </video>
                 </div>
-            </div>
-
-            <!-- Profile Controls -->
-            <div class="sidebar-card" style="padding: 4px; border-bottom: 1px solid var(--border); flex-shrink: 0;">
-                <div style="display: flex; gap: 4px; margin-bottom: 4px;">
-                    <label for="profile-upload" style="flex: 1; display: block; padding: 6px; background: none; border: 1px solid var(--border); color: var(--fg); text-align: center; cursor: pointer; font-size: 13px; border-radius: 2px;" title="Upload media">📷 Media</label>
-                    <button id="toggle-sidebar-pos" style="flex: 1; padding: 6px; background: none; border: 1px solid var(--border); color: var(--fg); cursor: pointer; font-size: 11px; text-transform: uppercase;" title="Toggle sidebar position">⬅➡</button>
-                </div>
-                <input type="file" id="profile-upload" accept="image/*,video/*,.gif" style="display: none;">
-            </div>
-
-            <div class="sidebar-card">
-                <div class="card-title">Vault Status</div>
-                <div class="card-row">
-                    <span class="card-label">Entries</span>
-                    <span class="card-value" id="stat-entries">0</span>
-                </div>
-                <div class="card-row">
-                    <span class="card-label">Provider</span>
-                    <span class="card-value" id="stat-provider">-</span>
-                </div>
-                <div class="card-row">
-                    <span class="card-label">Model</span>
-                    <span class="card-value" id="stat-model">-</span>
+                <div class="sb-profile-actions">
+                    <label for="sb-profile-upload" class="sb-profile-btn">📷 Picture</label>
+                    <button class="sb-profile-btn" id="sb-toggle-pos" title="Toggle sidebar position">⇄ Side</button>
+                    <input type="file" id="sb-profile-upload" accept="image/*,video/*,.gif" style="display:none">
                 </div>
             </div>
 
-            <div class="sidebar-card">
-                <div class="card-title">Vault Activity (2 weeks)</div>
-                <div id="contribution-grid"></div>
+            <!-- Vault Status -->
+            <div class="sb-card">
+                <div class="sb-card-title">Vault Status</div>
+                <div class="sb-row">
+                    <span class="sb-label">Notes</span>
+                    <span class="sb-value" id="stat-entries">0</span>
+                </div>
+                <div class="sb-row">
+                    <span class="sb-label">Inbox</span>
+                    <span class="sb-value" id="stat-inbox">0</span>
+                </div>
+                <div class="sb-row">
+                    <span class="sb-label">Provider</span>
+                    <span class="sb-value" id="stat-provider">-</span>
+                </div>
+                <div class="sb-row">
+                    <span class="sb-label">Model</span>
+                    <span class="sb-value" id="stat-model">-</span>
+                </div>
+            </div>
+
+            <!-- Activity -->
+            <div class="sb-card">
+                <div class="sb-card-title">Activity (2 weeks)</div>
+                <div class="activity-grid" id="activity-grid"></div>
                 <div class="activity-legend">
                     <span>Less</span>
-                    <div class="legend-square" style="background: var(--dim2);"></div>
-                    <div class="legend-square" style="background: rgba(0, 180, 60, 0.4);"></div>
-                    <div class="legend-square" style="background: rgba(0, 220, 80, 0.7);"></div>
-                    <div class="legend-square" style="background: rgba(0, 255, 65, 1.0);"></div>
+                    <div class="legend-sq" style="background:var(--dim2)"></div>
+                    <div class="legend-sq" style="background:rgba(0,255,65,0.25)"></div>
+                    <div class="legend-sq" style="background:rgba(0,255,65,0.5)"></div>
+                    <div class="legend-sq" style="background:rgba(0,255,65,0.75)"></div>
+                    <div class="legend-sq" style="background:var(--accent)"></div>
                     <span>More</span>
                 </div>
             </div>
 
-            <div class="sidebar-card">
-                <div class="card-title">Instructions</div>
-                <div class="card-text">// Create .md files in inbox/
-// Run: python ingest.py
-// Chat searches vault + LLM</div>
-            </div>
-
-            <div class="sidebar-card">
-                <div class="card-title">About</div>
-                <div class="card-text">RatVault — Multi-LLM knowledge system. Terminal-first. Offline-ready.</div>
-            </div>
-
-          </div><!-- end sidebar-scroll -->
-            <!-- Navigation at bottom — always visible -->
-            <div class="nav-bar" style="flex-direction: column; border-top: 2px solid var(--dim2); flex-shrink: 0;">
-                <button class="nav-btn active" data-view="chat" style="border-right: none; border-bottom: 1px solid var(--border);">Chat</button>
-                <button class="nav-btn" data-view="vault" style="border-right: none; border-bottom: 1px solid var(--border);">Vault</button>
-                <button class="nav-btn" id="settings-btn" style="border-right: none;">Config</button>
+            <!-- Reindex Action -->
+            <div class="sb-card">
+                <div class="sb-card-title">Pipeline</div>
+                <button class="toolbtn primary" id="btn-reindex" style="width:100%;padding:8px">⚙ Reindex Inbox</button>
+                <div id="reindex-status" style="font-size:10px;color:var(--dim);margin-top:6px;min-height:14px"></div>
             </div>
         </div>
-    </main>
 
-    <!-- Config Modal -->
-    <div class="modal-overlay" id="settings-modal">
-        <div class="modal">
-            <h2>// Configuration</h2>
-
-            <!-- Master Password Section -->
-            <div class="setting-group" id="master-pw-group">
-                <label>Master Password <span style="color:var(--dim);font-weight:normal;font-size:11px;">(encrypts API keys in browser)</span></label>
-                <div style="display:flex;gap:4px;">
-                    <input type="password" id="master-pw-input" placeholder="set a password to lock your keys..." style="flex:1;" />
-                    <button id="unlock-btn" style="padding:6px 10px;background:rgba(0,255,65,0.15);border:1px solid rgba(0,255,65,0.3);color:var(--fg);cursor:pointer;font-family:var(--mono);font-size:12px;white-space:nowrap;">Unlock</button>
-                </div>
-                <div class="setting-hint" id="master-pw-hint">Keys are encrypted with AES-GCM before storage. Never stored in plain text.</div>
-            </div>
-
-            <div class="setting-group">
-                <label>Provider</label>
-                <select id="provider-select">
-                    <option value="ollama">Ollama (Local)</option>
-                    <option value="openai">OpenAI</option>
-                    <option value="anthropic">Anthropic</option>
-                    <option value="openrouter">OpenRouter</option>
-                </select>
-                <div class="setting-hint" id="provider-hint">Ollama runs locally — no API key needed</div>
-            </div>
-
-            <div class="setting-group">
-                <label>Model</label>
-                <div style="display:flex;gap:4px;">
-                    <select id="model-select" style="flex:1;"></select>
-                    <button id="fetch-models-btn" style="padding:6px 10px;background:rgba(0,255,65,0.15);border:1px solid rgba(0,255,65,0.3);color:var(--fg);cursor:pointer;font-family:var(--mono);font-size:12px;white-space:nowrap;">↻ Fetch</button>
-                </div>
-                <div class="setting-hint" id="model-fetch-hint"></div>
-            </div>
-
-            <div class="setting-group" id="api-key-group" style="display:none;">
-                <label>API Key</label>
-                <input type="password" id="api-key-input" placeholder="sk-..." />
-                <div class="setting-hint" id="api-key-hint"></div>
-            </div>
-
-            <div id="config-status" style="font-size:11px;color:var(--dim);margin-bottom:8px;padding:6px;border:1px solid var(--dim2);"></div>
-
-            <div class="modal-actions">
-                <button class="btn" id="close-settings">Cancel</button>
-                <button class="btn btn-primary" id="save-settings">Save &amp; Apply</button>
-            </div>
+        <!-- Nav Buttons (always visible at bottom) -->
+        <div class="nav-bar">
+            <button class="nav-btn active" data-view="chat"><span class="nav-btn-icon">▸</span>Chat</button>
+            <button class="nav-btn" data-view="vault"><span class="nav-btn-icon">▸</span>Vault</button>
+            <button class="nav-btn" id="nav-config"><span class="nav-btn-icon">▸</span>Config</button>
         </div>
     </div>
+</main>
 
-    <!-- Status Bar -->
-    <footer>
-        <div class="status-cell invert">&nbsp;RAT VAULT&nbsp;</div>
-        <div class="status-cell">vault&nbsp;<span class="status-dim" id="status-entries">0</span></div>
-        <div class="status-cell status-dim">terminal · local knowledge system</div>
-        <div class="status-cell status-dim">tokens&nbsp;<span id="token-display">0/11539</span>&nbsp;<span id="token-percent">0%</span></div>
-        <div class="status-cell" id="status-model">-</div>
-        <div class="status-cell invert">&nbsp;OFFLINE OK&nbsp;</div>
-    </footer>
+<!-- Footer Status Bar -->
+<footer>
+    <div class="stat-cell invert">&nbsp;RAT VAULT&nbsp;</div>
+    <div class="stat-cell">notes <span style="color:var(--dim)" id="ft-notes">0</span></div>
+    <div class="stat-cell">inbox <span style="color:var(--dim)" id="ft-inbox">0</span></div>
+    <div class="stat-cell fill">terminal · local knowledge system</div>
+    <div class="stat-cell">
+        tokens
+        <span style="color:var(--dim)" id="ft-tokens">0/11539</span>
+        <div class="token-bar-bg"><div class="token-bar-fill" id="ft-tokenbar"></div></div>
+        <span style="color:var(--dim)" id="ft-tokenpct">0%</span>
+    </div>
+    <div class="stat-cell" id="ft-model">-</div>
+    <div class="stat-cell invert">&nbsp;ONLINE&nbsp;</div>
+</footer>
 
-    <script>
-        class RatVault {
-            constructor() {
-                this.messages = [];
-                this.currentDocSlug = null;
-                this.currentDocMode = 'split';
-                this.init();
-                this.loadStats();
+<!-- Config Modal -->
+<div class="modal-overlay" id="config-modal">
+    <div class="modal">
+        <h2>// Configuration</h2>
+
+        <div class="field-group">
+            <label>Master Password (encrypts API keys)</label>
+            <div class="field-row">
+                <input type="password" id="cfg-master-pw" class="grow" placeholder="set master password...">
+                <button class="btn" id="cfg-unlock">Unlock</button>
+            </div>
+            <div class="field-hint" id="cfg-master-hint">Keys encrypted with AES-GCM. Never stored plain text.</div>
+        </div>
+
+        <div class="field-group">
+            <label>Provider</label>
+            <select id="cfg-provider">
+                <option value="ollama">Ollama (Local)</option>
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="openrouter">OpenRouter</option>
+            </select>
+            <div class="field-hint" id="cfg-provider-hint">Ollama runs locally — no API key needed</div>
+        </div>
+
+        <div class="field-group">
+            <label>Model</label>
+            <div class="field-row">
+                <select id="cfg-model" class="grow"></select>
+                <button class="btn" id="cfg-fetch">↻ Fetch</button>
+            </div>
+            <div class="field-hint" id="cfg-fetch-hint"></div>
+        </div>
+
+        <div class="field-group" id="cfg-key-group" style="display:none">
+            <label>API Key</label>
+            <input type="password" id="cfg-key" placeholder="sk-...">
+            <div class="field-hint" id="cfg-key-hint"></div>
+        </div>
+
+        <div class="status-msg" id="cfg-status"></div>
+
+        <div class="modal-actions">
+            <button class="btn" id="cfg-cancel">Cancel</button>
+            <button class="btn primary" id="cfg-save">Save & Apply</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+class RatVault {
+    constructor() {
+        this.messages = [];
+        this.currentDoc = null; // {slug, title, isNew}
+        this.currentTab = 'notes';
+        this.currentMode = 'split';
+        this.init();
+    }
+
+    init() {
+        this.initNav();
+        this.initChat();
+        this.initVault();
+        this.initEditor();
+        this.initSidebar();
+        this.initConfig();
+        this.initClock();
+        this.initFooter();
+        this.loadProfileMedia();
+        this.loadSettings();
+        this.loadStats();
+        this.restoreSidebarPos();
+    }
+
+    // ==================== NAV ====================
+    initNav() {
+        document.querySelectorAll('.nav-btn').forEach(b => {
+            b.addEventListener('click', e => {
+                if (b.id === 'nav-config') return this.openConfig();
+                this.switchView(b.dataset.view);
+            });
+        });
+    }
+
+    switchView(name) {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById(`${name}-view`).classList.add('active');
+        document.querySelectorAll('.nav-btn[data-view]').forEach(b => {
+            b.classList.toggle('active', b.dataset.view === name);
+        });
+        if (name === 'vault') this.loadVaultDocs();
+    }
+
+    // ==================== CHAT ====================
+    initChat() {
+        const input = document.getElementById('chat-input');
+        const send = document.getElementById('chat-send');
+        send.addEventListener('click', () => this.sendMessage());
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                this.sendMessage();
             }
+        });
+        input.addEventListener('input', () => {
+            input.style.height = 'auto';
+            input.style.height = Math.min(input.scrollHeight, 200) + 'px';
+        });
+    }
 
-            init() {
-                // Navigation
-                document.querySelectorAll('.nav-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        if (e.target.id === 'settings-btn') {
-                            this.openSettings();
-                        } else if (e.target.dataset.view) {
-                            this.switchView(e.target.dataset.view);
-                        }
+    async sendMessage() {
+        const input = document.getElementById('chat-input');
+        const text = input.value.trim();
+        if (!text) return;
+
+        this.addMessage('user', text);
+        input.value = '';
+        input.style.height = 'auto';
+
+        const settings = JSON.parse(localStorage.getItem('rv-settings') || '{}');
+        const sendBtn = document.getElementById('chat-send');
+        sendBtn.disabled = true;
+
+        try {
+            const r = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    message: text,
+                    history: this.messages,
+                    provider: settings.provider || null,
+                    model: settings.model || null,
+                    api_key: settings.apiKey || null,
+                })
+            });
+            const data = await r.json();
+            if (data.reply) {
+                this.addMessage('assistant', data.reply);
+                this.messages.push({role: 'user', content: text});
+                this.messages.push({role: 'assistant', content: data.reply});
+                // Estimate tokens (rough)
+                this.addTokens(Math.ceil((text.length + data.reply.length) / 4));
+            } else if (data.error) {
+                this.addMessage('error', `Error: ${data.error}`);
+            }
+        } catch (e) {
+            this.addMessage('error', 'Connection error: ' + e.message);
+        } finally {
+            sendBtn.disabled = false;
+        }
+    }
+
+    addMessage(role, content) {
+        const wrap = document.getElementById('chat-messages');
+        const msg = document.createElement('div');
+        msg.className = `msg ${role}`;
+
+        const avatar = document.createElement('div');
+        avatar.className = 'msg-avatar';
+        avatar.textContent = role === 'user' ? 'YOU' : (role === 'error' ? '!' : 'RV');
+        msg.appendChild(avatar);
+
+        const body = document.createElement('div');
+        body.className = 'msg-body';
+
+        const author = document.createElement('div');
+        author.className = 'msg-author';
+        author.textContent = role === 'user' ? 'You' : (role === 'error' ? 'Error' : 'RatVault');
+        body.appendChild(author);
+
+        const cont = document.createElement('div');
+        cont.className = 'msg-content';
+        if (role === 'assistant') {
+            cont.innerHTML = marked.parse(content);
+        } else {
+            cont.textContent = content;
+        }
+        body.appendChild(cont);
+
+        msg.appendChild(body);
+        wrap.appendChild(msg);
+        wrap.scrollTop = wrap.scrollHeight;
+    }
+
+    // ==================== VAULT ====================
+    initVault() {
+        document.getElementById('vault-new').addEventListener('click', () => this.newDoc());
+        document.getElementById('vault-refresh').addEventListener('click', () => {
+            this.loadVaultDocs();
+            this.loadStats();
+            this.toast('Refreshed');
+        });
+        document.getElementById('vault-upload').addEventListener('click', () => {
+            document.getElementById('vault-upload-input').click();
+        });
+        document.getElementById('vault-upload-input').addEventListener('change', e => {
+            this.uploadToInbox(Array.from(e.target.files));
+            e.target.value = '';
+        });
+
+        document.getElementById('vault-search').addEventListener('input', e => {
+            const q = e.target.value.toLowerCase();
+            document.querySelectorAll('.doc-item').forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(q) ? '' : 'none';
+            });
+        });
+
+        document.querySelectorAll('.vault-tab').forEach(t => {
+            t.addEventListener('click', () => this.switchVaultTab(t.dataset.tab));
+        });
+    }
+
+    switchVaultTab(tab) {
+        this.currentTab = tab;
+        document.querySelectorAll('.vault-tab').forEach(t => {
+            t.classList.toggle('active', t.dataset.tab === tab);
+        });
+        document.getElementById('vault-list-notes').style.display = tab === 'notes' ? '' : 'none';
+        document.getElementById('vault-list-inbox').style.display = tab === 'inbox' ? '' : 'none';
+        if (tab === 'inbox') this.loadInboxDocs();
+    }
+
+    async loadVaultDocs() {
+        if (this.currentTab === 'inbox') {
+            this.loadInboxDocs();
+        } else {
+            await this.loadNotesDocs();
+        }
+    }
+
+    async loadNotesDocs() {
+        const list = document.getElementById('vault-list-notes');
+        try {
+            const r = await fetch('/api/entries');
+            const entries = await r.json();
+            if (!entries.length) {
+                list.innerHTML = '<div class="empty-state">No wiki notes yet. Upload to inbox + reindex, or create a new doc.</div>';
+                return;
+            }
+            list.innerHTML = '';
+            entries.forEach(e => {
+                const item = document.createElement('div');
+                item.className = 'doc-item';
+                const info = document.createElement('div');
+                info.className = 'doc-item-info';
+                const title = document.createElement('div');
+                title.className = 'doc-item-title';
+                title.textContent = e.title || 'Untitled';
+                const meta = document.createElement('div');
+                meta.className = 'doc-item-meta';
+                if (e.created) {
+                    const b1 = document.createElement('span');
+                    b1.className = 'badge';
+                    b1.textContent = e.created;
+                    meta.appendChild(b1);
+                }
+                if (e.tags && e.tags.length) {
+                    e.tags.slice(0,3).forEach(t => {
+                        const b = document.createElement('span');
+                        b.className = 'badge';
+                        b.textContent = t;
+                        meta.appendChild(b);
                     });
+                }
+                info.appendChild(title);
+                info.appendChild(meta);
+                item.appendChild(info);
+                item.addEventListener('click', () => this.openDoc(e.slug));
+                list.appendChild(item);
+            });
+        } catch (e) {
+            list.innerHTML = `<div class="empty-state">Error: ${e.message}</div>`;
+        }
+    }
+
+    async loadInboxDocs() {
+        const list = document.getElementById('vault-list-inbox');
+        try {
+            const r = await fetch('/api/inbox');
+            const files = await r.json();
+            if (!files.length) {
+                list.innerHTML = '<div class="empty-state">Inbox empty. Upload files or create docs to populate.</div>';
+                return;
+            }
+            list.innerHTML = '';
+            files.forEach(f => {
+                const item = document.createElement('div');
+                item.className = 'inbox-item';
+                const icon = document.createElement('div');
+                icon.className = 'inbox-item-icon';
+                icon.textContent = this.fileIcon(f.type);
+                const info = document.createElement('div');
+                info.className = 'inbox-item-info';
+                const name = document.createElement('div');
+                name.className = 'inbox-item-name';
+                name.textContent = f.name;
+                const meta = document.createElement('div');
+                meta.className = 'inbox-item-meta';
+                meta.textContent = `${this.fmtSize(f.size)} · ${f.modified.split('T')[0]}`;
+                info.appendChild(name);
+                info.appendChild(meta);
+                item.appendChild(icon);
+                item.appendChild(info);
+                const actions = document.createElement('div');
+                actions.className = 'doc-item-actions';
+                const del = document.createElement('button');
+                del.className = 'doc-action-btn';
+                del.textContent = '✕';
+                del.title = 'Delete';
+                del.addEventListener('click', e => {
+                    e.stopPropagation();
+                    this.deleteInboxFile(f.name);
                 });
+                actions.appendChild(del);
+                item.appendChild(actions);
+                list.appendChild(item);
+            });
+        } catch (e) {
+            list.innerHTML = `<div class="empty-state">Error: ${e.message}</div>`;
+        }
+    }
 
-                // Chat
-                document.getElementById('chat-send').addEventListener('click', () => this.sendMessage());
-                document.getElementById('chat-input').addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') this.sendMessage();
+    fileIcon(ext) {
+        if (['.md','.txt'].includes(ext)) return '📄';
+        if (['.pdf'].includes(ext)) return '📕';
+        if (['.png','.jpg','.jpeg','.gif','.webp'].includes(ext)) return '🖼';
+        if (['.mp4','.webm','.mov'].includes(ext)) return '🎬';
+        if (['.mp3','.wav'].includes(ext)) return '🎵';
+        return '📎';
+    }
+
+    fmtSize(b) {
+        if (b < 1024) return b + 'B';
+        if (b < 1048576) return (b/1024).toFixed(1) + 'K';
+        if (b < 1073741824) return (b/1048576).toFixed(1) + 'M';
+        return (b/1073741824).toFixed(1) + 'G';
+    }
+
+    async uploadToInbox(files) {
+        for (const f of files) {
+            try {
+                const fd = new FormData();
+                fd.append('file', f);
+                const r = await fetch('/api/inbox/upload', {method: 'POST', body: fd});
+                if (!r.ok) throw new Error('Upload failed');
+                this.toast(`✓ Uploaded ${f.name}`);
+            } catch (e) {
+                this.toast(`✗ ${f.name}: ${e.message}`);
+            }
+        }
+        this.loadInboxDocs();
+        this.loadStats();
+    }
+
+    async deleteInboxFile(name) {
+        if (!confirm(`Delete ${name}?`)) return;
+        try {
+            await fetch(`/api/inbox/${encodeURIComponent(name)}`, {method: 'DELETE'});
+            this.toast(`✓ Deleted ${name}`);
+            this.loadInboxDocs();
+            this.loadStats();
+        } catch (e) {
+            this.toast(`✗ ${e.message}`);
+        }
+    }
+
+    // ==================== EDITOR ====================
+    initEditor() {
+        document.querySelectorAll('.doc-mode-btn').forEach(b => {
+            b.addEventListener('click', () => this.setEditorMode(b.dataset.mode));
+        });
+        document.querySelectorAll('.doc-toolbar button').forEach(b => {
+            b.addEventListener('click', () => this.insertMd(b.dataset.md));
+        });
+        document.getElementById('doc-save').addEventListener('click', () => this.saveDoc());
+        document.getElementById('doc-back').addEventListener('click', () => this.switchView('vault'));
+        document.getElementById('doc-new').addEventListener('click', () => this.newDoc());
+
+        const ed = document.getElementById('doc-editor');
+        const pv = document.getElementById('doc-preview');
+        ed.addEventListener('input', () => {
+            pv.innerHTML = marked.parse(ed.value);
+        });
+    }
+
+    setEditorMode(mode) {
+        this.currentMode = mode;
+        const panes = document.getElementById('doc-panes');
+        panes.className = 'doc-panes mode-' + mode;
+        document.querySelectorAll('.doc-mode-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.mode === mode);
+        });
+    }
+
+    insertMd(type) {
+        if (this.currentMode === 'preview') this.setEditorMode('split');
+        const ed = document.getElementById('doc-editor');
+        const s = ed.selectionStart, e = ed.selectionEnd;
+        const sel = ed.value.substring(s, e) || 'text';
+        let ins = '';
+        switch(type) {
+            case 'bold': ins = `**${sel}**`; break;
+            case 'italic': ins = `*${sel}*`; break;
+            case 'code': ins = '`' + sel + '`'; break;
+            case 'h1': ins = `# ${sel}`; break;
+            case 'h2': ins = `## ${sel}`; break;
+            case 'h3': ins = `### ${sel}`; break;
+            case 'link': {
+                const url = prompt('URL:');
+                ins = `[${sel}](${url || 'https://'})`;
+                break;
+            }
+            case 'image': {
+                const url = prompt('Image URL or path:');
+                ins = `![${sel}](${url || '/assets/image.jpg'})`;
+                break;
+            }
+            case 'video': {
+                const url = prompt('Video URL or path:');
+                ins = `<video controls style="max-width:100%"><source src="${url || '/assets/video.mp4'}"></video>`;
+                break;
+            }
+            case 'ul': ins = `- ${sel}`; break;
+            case 'ol': ins = `1. ${sel}`; break;
+            case 'quote': ins = `> ${sel}`; break;
+        }
+        ed.value = ed.value.substring(0, s) + ins + ed.value.substring(e);
+        ed.focus();
+        ed.setSelectionRange(s + ins.length, s + ins.length);
+        ed.dispatchEvent(new Event('input'));
+    }
+
+    newDoc() {
+        const title = prompt('Document title:');
+        if (!title) return;
+        const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        this.currentDoc = {slug, title, isNew: true};
+        document.getElementById('doc-title').value = title;
+        document.getElementById('doc-editor').value = `# ${title}\n\n`;
+        document.getElementById('doc-preview').innerHTML = marked.parse(`# ${title}\n\n`);
+        this.switchView('document');
+    }
+
+    async openDoc(slug) {
+        try {
+            const r = await fetch(`/api/entries/${slug}`);
+            const e = await r.json();
+            this.currentDoc = {slug, title: e.title || slug, isNew: false};
+            document.getElementById('doc-title').value = e.title || '';
+            document.getElementById('doc-editor').value = e.body || '';
+            document.getElementById('doc-preview').innerHTML = marked.parse(e.body || '');
+            this.switchView('document');
+        } catch (err) {
+            this.toast(`✗ Could not load doc: ${err.message}`);
+        }
+    }
+
+    async saveDoc() {
+        if (!this.currentDoc) return;
+        const title = document.getElementById('doc-title').value.trim() || this.currentDoc.title;
+        const content = document.getElementById('doc-editor').value;
+        const slug = this.currentDoc.slug;
+
+        try {
+            // Save to inbox/ for re-ingestion
+            const r = await fetch('/api/inbox/save-edit', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({title, slug, content}),
+            });
+            if (!r.ok) throw new Error('Save failed');
+
+            // If existing note, also update Notes/
+            if (!this.currentDoc.isNew) {
+                await fetch(`/api/entries/${slug}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({content}),
                 });
-
-                // Settings
-                document.getElementById('close-settings').addEventListener('click', () => this.closeSettings());
-                document.getElementById('save-settings').addEventListener('click', () => this.saveSettings());
-                document.getElementById('fetch-models-btn').addEventListener('click', () => this.fetchModels());
-                document.getElementById('unlock-btn').addEventListener('click', () => this.unlockKeys());
-                document.getElementById('provider-select').addEventListener('change', (e) => this.updateModelOptions(e.target.value, null));
-
-                // Profile Upload
-                this.initProfileUpload();
-
-                // Clock
-                this.initClock();
-
-                // Sidebar position toggle
-                document.getElementById('toggle-sidebar-pos').addEventListener('click', () => this.toggleSidebarPosition());
-
-                // Vault View
-                this.initVaultView();
-                this.initDocumentView();
-
-                this.loadSettings();
-                this.loadProfileImage();
-                this.restoreSidebarPosition();
-                this.updateTokenDisplay();
-            }
-
-            initClock() {
-                const updateTime = () => {
-                    const now = new Date();
-                    const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
-                    const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
-                    document.getElementById('local-time').textContent = timeStr;
-                    document.getElementById('local-date').textContent = dateStr;
-                };
-                updateTime();
-                setInterval(updateTime, 1000);
-            }
-
-            toggleSidebarPosition() {
-                const main = document.querySelector('main');
-                const currentPos = localStorage.getItem('ratvault-sidebar-pos') || 'right';
-                const newPos = currentPos === 'right' ? 'left' : 'right';
-                localStorage.setItem('ratvault-sidebar-pos', newPos);
-
-                if (newPos === 'left') {
-                    main.classList.add('sidebar-left');
-                } else {
-                    main.classList.remove('sidebar-left');
-                }
-            }
-
-            restoreSidebarPosition() {
-                const pos = localStorage.getItem('ratvault-sidebar-pos') || 'right';
-                const main = document.querySelector('main');
-                if (pos === 'left') {
-                    main.classList.add('sidebar-left');
-                }
-            }
-
-            async loadProfileImage() {
-                try {
-                    const res = await fetch('/api/profile/current');
-                    const data = await res.json();
-                    if (data.url) {
-                        const profileMedia = document.getElementById('profile-media');
-                        profileMedia.textContent = '';
-                        const img = document.createElement('img');
-                        img.src = data.url;
-                        img.style.cssText = 'width:100%; height:100%; object-fit:cover; display:block; filter:grayscale(1) contrast(1.1);';
-                        profileMedia.appendChild(img);
-                    }
-                } catch (e) {
-                    // Fallback to default video
-                }
-            }
-
-            initVaultView() {
-                const searchInput = document.getElementById('vault-search');
-                const refreshBtn = document.getElementById('vault-refresh');
-                const newDocBtn = document.getElementById('vault-new-doc');
-                const vaultList = document.getElementById('vault-list');
-
-                refreshBtn.addEventListener('click', () => this.loadVaultDocuments());
-                newDocBtn.addEventListener('click', () => this.createNewDocument());
-
-                searchInput.addEventListener('input', (e) => {
-                    const query = e.target.value.toLowerCase();
-                    const items = document.querySelectorAll('.vault-doc-item');
-                    items.forEach(item => {
-                        const text = item.textContent.toLowerCase();
-                        item.style.display = text.includes(query) ? '' : 'none';
-                    });
+            } else {
+                // Create new entry in Notes/ as well
+                await fetch('/api/entries', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({title, slug, content}),
                 });
+                this.currentDoc.isNew = false;
             }
 
-            initDocumentView() {
-                const editor = document.getElementById('doc-editor');
-                const preview = document.getElementById('doc-preview');
-                const saveBtn = document.getElementById('doc-save');
-                const backBtn = document.getElementById('doc-back');
-                const newBtn = document.getElementById('doc-new');
+            this.toast('✓ Saved to inbox + Notes (run reindex to integrate)');
+            this.loadStats();
+        } catch (e) {
+            this.toast(`✗ ${e.message}`);
+        }
+    }
 
-                // Mode buttons
-                document.getElementById('doc-mode-edit').addEventListener('click', () => this.switchDocMode('edit'));
-                document.getElementById('doc-mode-preview').addEventListener('click', () => this.switchDocMode('preview'));
-                document.getElementById('doc-mode-split').addEventListener('click', () => this.switchDocMode('split'));
+    // ==================== SIDEBAR ====================
+    initSidebar() {
+        document.getElementById('sb-toggle-pos').addEventListener('click', () => {
+            const main = document.querySelector('main');
+            const isLeft = main.classList.toggle('sidebar-left');
+            localStorage.setItem('rv-sidebar-pos', isLeft ? 'left' : 'right');
+        });
 
-                // Toolbar buttons
-                document.getElementById('doc-bold').addEventListener('click', () => this.insertMarkdown('bold'));
-                document.getElementById('doc-italic').addEventListener('click', () => this.insertMarkdown('italic'));
-                document.getElementById('doc-link').addEventListener('click', () => this.insertMarkdown('link'));
-                document.getElementById('doc-image').addEventListener('click', () => this.insertMarkdown('image'));
-                document.getElementById('doc-video').addEventListener('click', () => this.insertMarkdown('video'));
-                document.getElementById('doc-h1').addEventListener('click', () => this.insertMarkdown('h1'));
-                document.getElementById('doc-h2').addEventListener('click', () => this.insertMarkdown('h2'));
-                document.getElementById('doc-code').addEventListener('click', () => this.insertMarkdown('code'));
+        const upload = document.getElementById('sb-profile-upload');
+        upload.addEventListener('change', async e => {
+            const f = e.target.files[0];
+            if (!f) return;
+            try {
+                const fd = new FormData();
+                fd.append('file', f);
+                const r = await fetch('/api/profile', {method: 'POST', body: fd});
+                if (!r.ok) throw new Error('Upload failed');
+                const data = await r.json();
+                this.setProfileMedia(data.url, f.type);
+                this.toast('✓ Profile updated');
+            } catch (err) {
+                this.toast(`✗ ${err.message}`);
+            }
+            e.target.value = '';
+        });
 
-                // Editor input - live preview
-                editor.addEventListener('input', () => {
-                    if (preview) {
-                        preview.innerHTML = '';
-                        const div = document.createElement('div');
-                        div.innerHTML = marked.parse(editor.value);
-                        preview.appendChild(div);
-                    }
+        document.getElementById('btn-reindex').addEventListener('click', () => this.runReindex());
+    }
+
+    restoreSidebarPos() {
+        if (localStorage.getItem('rv-sidebar-pos') === 'left') {
+            document.querySelector('main').classList.add('sidebar-left');
+        }
+    }
+
+    async loadProfileMedia() {
+        try {
+            const r = await fetch('/api/profile/current');
+            const data = await r.json();
+            if (data.url) {
+                const ext = data.url.split('.').pop().toLowerCase();
+                const isVid = ['mp4','webm','mov'].includes(ext);
+                this.setProfileMedia(data.url, isVid ? 'video/' : 'image/');
+            }
+        } catch (e) {}
+    }
+
+    setProfileMedia(url, mimeType) {
+        const wrap = document.getElementById('sb-profile-media');
+        wrap.innerHTML = '';
+        if (mimeType.startsWith('video/')) {
+            const v = document.createElement('video');
+            v.autoplay = true;
+            v.loop = true;
+            v.muted = true;
+            v.playsInline = true;
+            const s = document.createElement('source');
+            s.src = url;
+            v.appendChild(s);
+            v.addEventListener('error', () => this.showProfileFallback());
+            wrap.appendChild(v);
+        } else {
+            const img = document.createElement('img');
+            img.src = url;
+            img.addEventListener('error', () => this.showProfileFallback());
+            wrap.appendChild(img);
+        }
+    }
+
+    showProfileFallback() {
+        const wrap = document.getElementById('sb-profile-media');
+        wrap.innerHTML = '<div class="sb-profile-fallback">[ no media ]<br>upload a picture →</div>';
+    }
+
+    async runReindex() {
+        const btn = document.getElementById('btn-reindex');
+        const status = document.getElementById('reindex-status');
+        btn.disabled = true;
+        btn.textContent = '⚙ Running...';
+        status.textContent = 'Running ingest.py on inbox/...';
+        try {
+            const r = await fetch('/api/reindex', {method: 'POST'});
+            const data = await r.json();
+            if (data.status === 'ok') {
+                status.textContent = '✓ Reindex complete';
+                this.toast('✓ Reindex complete');
+            } else {
+                status.textContent = '✗ ' + (data.stderr || 'Failed').split('\n')[0].slice(0, 60);
+                this.toast('✗ Reindex failed');
+            }
+            this.loadStats();
+        } catch (e) {
+            status.textContent = '✗ ' + e.message;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '⚙ Reindex Inbox';
+        }
+    }
+
+    // ==================== CLOCK ====================
+    initClock() {
+        const tick = () => {
+            const now = new Date();
+            document.getElementById('sb-time').textContent =
+                now.toLocaleTimeString('en-US', {hour12: false});
+            document.getElementById('sb-date').textContent =
+                now.toLocaleDateString('en-US', {month: 'short', day: '2-digit', year: 'numeric'});
+        };
+        tick();
+        setInterval(tick, 1000);
+    }
+
+    // ==================== STATS ====================
+    async loadStats() {
+        try {
+            const [entries, inbox, prov] = await Promise.all([
+                fetch('/api/entries').then(r => r.json()),
+                fetch('/api/inbox').then(r => r.json()),
+                fetch('/api/providers').then(r => r.json()),
+            ]);
+
+            document.getElementById('stat-entries').textContent = entries.length;
+            document.getElementById('stat-inbox').textContent = inbox.length;
+            document.getElementById('stat-provider').textContent = (prov.provider || '-').toUpperCase();
+            const modelShort = (prov.model || '-').split('/').pop().slice(0, 14);
+            document.getElementById('stat-model').textContent = modelShort.toUpperCase();
+
+            document.getElementById('ft-notes').textContent = entries.length;
+            document.getElementById('ft-inbox').textContent = inbox.length;
+            document.getElementById('ft-model').textContent = `${prov.provider}/${modelShort}`.toUpperCase();
+
+            this.renderActivity(entries);
+        } catch (e) {}
+    }
+
+    renderActivity(entries) {
+        const counts = {};
+        entries.forEach(e => {
+            if (e.created) counts[e.created] = (counts[e.created] || 0) + 1;
+        });
+
+        const grid = document.getElementById('activity-grid');
+        grid.innerHTML = '';
+        const today = new Date();
+        const start = new Date(today);
+        start.setDate(today.getDate() - 13);
+        const dayOfWeek = start.getDay();
+        const aligned = new Date(start);
+        aligned.setDate(start.getDate() - ((dayOfWeek + 6) % 7));
+
+        // Row-major: 7 rows × 2 cols
+        for (let row = 0; row < 7; row++) {
+            for (let col = 0; col < 2; col++) {
+                const d = new Date(aligned);
+                d.setDate(aligned.getDate() + col * 7 + row);
+                const ds = d.toISOString().split('T')[0];
+                const c = counts[ds] || 0;
+                const cell = document.createElement('div');
+                cell.className = 'activity-cell';
+                if (c >= 5) cell.classList.add('l4');
+                else if (c >= 3) cell.classList.add('l3');
+                else if (c >= 2) cell.classList.add('l2');
+                else if (c >= 1) cell.classList.add('l1');
+                const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+                cell.title = `${days[d.getDay()]} ${ds}: ${c} note${c !== 1 ? 's' : ''}`;
+                grid.appendChild(cell);
+            }
+        }
+    }
+
+    // ==================== FOOTER ====================
+    initFooter() {
+        this.updateTokens();
+    }
+
+    addTokens(n) {
+        const data = JSON.parse(localStorage.getItem('rv-tokens') || '{"used":0,"max":11539}');
+        data.used = (data.used || 0) + n;
+        localStorage.setItem('rv-tokens', JSON.stringify(data));
+        this.updateTokens();
+    }
+
+    updateTokens() {
+        const data = JSON.parse(localStorage.getItem('rv-tokens') || '{"used":0,"max":11539}');
+        const used = data.used || 0;
+        const max = data.max || 11539;
+        const pct = Math.min(100, Math.round((used / max) * 100));
+        document.getElementById('ft-tokens').textContent = `${used}/${max}`;
+        document.getElementById('ft-tokenbar').style.width = pct + '%';
+        document.getElementById('ft-tokenpct').textContent = pct + '%';
+    }
+
+    // ==================== TOAST ====================
+    toast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.style.display = 'block';
+        clearTimeout(this._toastTimer);
+        this._toastTimer = setTimeout(() => t.style.display = 'none', 2500);
+    }
+
+    // ==================== CONFIG MODAL ====================
+    initConfig() {
+        document.getElementById('cfg-cancel').addEventListener('click', () => this.closeConfig());
+        document.getElementById('cfg-save').addEventListener('click', () => this.saveConfig());
+        document.getElementById('cfg-fetch').addEventListener('click', () => this.fetchModels());
+        document.getElementById('cfg-unlock').addEventListener('click', () => this.unlockKey());
+        document.getElementById('cfg-provider').addEventListener('change', e => {
+            this.updateProviderUI(e.target.value);
+        });
+    }
+
+    MODELS = {
+        ollama: [],
+        openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'],
+        anthropic: ['claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001'],
+        openrouter: ['anthropic/claude-sonnet-4-5', 'openai/gpt-4o-mini'],
+    };
+    HINTS = {
+        ollama: 'No key needed — runs at localhost:11434',
+        openai: 'Get key at platform.openai.com/api-keys',
+        anthropic: 'Get key at console.anthropic.com',
+        openrouter: 'Get key at openrouter.ai/keys',
+    };
+
+    openConfig() {
+        document.getElementById('config-modal').classList.add('active');
+        this.loadSettings();
+    }
+
+    closeConfig() {
+        document.getElementById('config-modal').classList.remove('active');
+    }
+
+    loadSettings() {
+        const s = JSON.parse(localStorage.getItem('rv-settings') || '{}');
+        const provider = s.provider || 'ollama';
+        document.getElementById('cfg-provider').value = provider;
+        this.updateProviderUI(provider, s.model);
+    }
+
+    updateProviderUI(provider, selected) {
+        document.getElementById('cfg-key-group').style.display =
+            provider === 'ollama' ? 'none' : 'block';
+        document.getElementById('cfg-provider-hint').textContent = this.HINTS[provider] || '';
+        document.getElementById('cfg-key-hint').textContent = this.HINTS[provider] || '';
+
+        const sel = document.getElementById('cfg-model');
+        sel.innerHTML = '';
+        const models = this.MODELS[provider] || [];
+        if (!models.length) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = '← click ↻ Fetch';
+            sel.appendChild(opt);
+        } else {
+            models.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = m;
+                sel.appendChild(opt);
+            });
+            if (selected) sel.value = selected;
+        }
+    }
+
+    async fetchModels() {
+        const provider = document.getElementById('cfg-provider').value;
+        const apiKey = document.getElementById('cfg-key').value.trim();
+        const hint = document.getElementById('cfg-fetch-hint');
+        if (provider !== 'ollama' && !apiKey) {
+            hint.textContent = 'Enter API key first.';
+            return;
+        }
+        hint.textContent = 'Fetching...';
+        try {
+            let models = [];
+            if (provider === 'ollama') {
+                const r = await fetch('http://localhost:11434/api/tags');
+                if (!r.ok) throw new Error('Ollama not running');
+                const d = await r.json();
+                models = (d.models || []).map(m => m.name);
+            } else if (provider === 'openai') {
+                const r = await fetch('https://api.openai.com/v1/models', {
+                    headers: {'Authorization': `Bearer ${apiKey}`}
                 });
-
-                // Save button
-                saveBtn.addEventListener('click', () => this.saveDocument());
-                backBtn.addEventListener('click', () => this.switchView('vault'));
-                newBtn.addEventListener('click', () => this.createNewDocument());
-
-                this.currentDocMode = 'split';
-            }
-
-            switchDocMode(mode) {
-                const panes = document.getElementById('doc-panes');
-                const editor = document.getElementById('doc-editor');
-                const preview = document.getElementById('doc-preview');
-                const buttons = document.querySelectorAll('.doc-mode-btn');
-
-                buttons.forEach(b => {
-                    b.style.background = 'transparent';
-                    b.style.borderColor = 'var(--dim2)';
-                    b.style.color = 'var(--fg)';
+                if (!r.ok) throw new Error('Auth failed');
+                const d = await r.json();
+                models = d.data.filter(m => /gpt-/.test(m.id)).map(m => m.id).sort().slice(0, 30);
+            } else if (provider === 'anthropic') {
+                models = this.MODELS.anthropic;
+            } else if (provider === 'openrouter') {
+                const r = await fetch('https://openrouter.ai/api/v1/models', {
+                    headers: {'Authorization': `Bearer ${apiKey}`}
                 });
-
-                if (mode === 'edit') {
-                    panes.style.gridTemplateColumns = '1fr';
-                    preview.style.display = 'none';
-                    editor.style.display = 'block';
-                    document.getElementById('doc-mode-edit').style.background = 'var(--fg)';
-                    document.getElementById('doc-mode-edit').style.color = 'var(--bg)';
-                    document.getElementById('doc-mode-edit').style.borderColor = 'var(--fg)';
-                } else if (mode === 'preview') {
-                    panes.style.gridTemplateColumns = '1fr';
-                    editor.style.display = 'none';
-                    preview.style.display = 'block';
-                    document.getElementById('doc-mode-preview').style.background = 'var(--fg)';
-                    document.getElementById('doc-mode-preview').style.color = 'var(--bg)';
-                    document.getElementById('doc-mode-preview').style.borderColor = 'var(--fg)';
-                } else {
-                    panes.style.gridTemplateColumns = '1fr 1fr';
-                    editor.style.display = 'block';
-                    preview.style.display = 'block';
-                    document.getElementById('doc-mode-split').style.background = 'var(--fg)';
-                    document.getElementById('doc-mode-split').style.color = 'var(--bg)';
-                    document.getElementById('doc-mode-split').style.borderColor = 'var(--fg)';
-                }
-
-                this.currentDocMode = mode;
+                if (!r.ok) throw new Error('Fetch failed');
+                const d = await r.json();
+                models = d.data.map(m => m.id).slice(0, 50);
             }
+            this.MODELS[provider] = models;
+            this.updateProviderUI(provider);
+            hint.textContent = `✓ ${models.length} models loaded`;
+        } catch (e) {
+            hint.textContent = 'Error: ' + e.message;
+        }
+    }
 
-            insertMarkdown(type) {
-                const editor = document.getElementById('doc-editor');
+    async unlockKey() {
+        const pw = document.getElementById('cfg-master-pw').value;
+        if (!pw) {
+            document.getElementById('cfg-status').textContent = 'Enter master password.';
+            return;
+        }
+        const provider = document.getElementById('cfg-provider').value;
+        const enc = localStorage.getItem(`rv-key-${provider}`);
+        if (!enc) {
+            document.getElementById('cfg-status').textContent = `No saved key for ${provider}.`;
+            return;
+        }
+        try {
+            const key = await this.decryptKey(enc, pw);
+            document.getElementById('cfg-key').value = key;
+            document.getElementById('cfg-master-hint').textContent = '✓ Unlocked';
+        } catch (e) {
+            document.getElementById('cfg-master-hint').textContent = '✗ Wrong password';
+        }
+    }
 
-                // If in preview mode, switch to split to show editor
-                if (this.currentDocMode === 'preview') {
-                    this.switchDocMode('split');
-                }
+    async saveConfig() {
+        const provider = document.getElementById('cfg-provider').value;
+        const model = document.getElementById('cfg-model').value;
+        const apiKey = document.getElementById('cfg-key').value.trim();
+        const masterPw = document.getElementById('cfg-master-pw').value;
+        const status = document.getElementById('cfg-status');
 
-                const start = editor.selectionStart;
-                const end = editor.selectionEnd;
-                const selected = editor.value.substring(start, end) || 'text';
-                let insert = '';
+        if (!model) { status.textContent = 'Select a model.'; return; }
+        if (provider !== 'ollama' && !apiKey) {
+            status.textContent = 'Enter API key.'; return;
+        }
 
-                switch(type) {
-                    case 'bold':
-                        insert = `**${selected}**`;
-                        break;
-                    case 'italic':
-                        insert = `*${selected}*`;
-                        break;
-                    case 'link':
-                        const url = prompt('Enter URL:');
-                        insert = `[${selected}](${url || 'https://example.com'})`;
-                        break;
-                    case 'image':
-                        const imgUrl = prompt('Enter image URL:');
-                        insert = `![${selected}](${imgUrl || '/assets/image.jpg'})`;
-                        break;
-                    case 'video':
-                        const vidUrl = prompt('Enter video URL:');
-                        insert = `<video controls style="width:100%"><source src="${vidUrl || '/assets/video.mp4'}" type="video/mp4"></video>`;
-                        break;
-                    case 'h1':
-                        insert = `# ${selected}`;
-                        break;
-                    case 'h2':
-                        insert = `## ${selected}`;
-                        break;
-                    case 'code':
-                        insert = `` ` ``+ selected + `` ` ``;
-                        break;
-                }
-
-                const newText = editor.value.substring(0, start) + insert + editor.value.substring(end);
-                editor.value = newText;
-                editor.dispatchEvent(new Event('input'));
-                editor.focus();
+        if (apiKey && provider !== 'ollama') {
+            if (!masterPw) {
+                status.textContent = 'Enter master password to encrypt key.';
+                return;
             }
-
-            async saveDocument() {
-                const editor = document.getElementById('doc-editor');
-                const slug = this.currentDocSlug;
-
-                if (!slug) {
-                    alert('No document slug');
-                    return;
-                }
-
-                try {
-                    const res = await fetch(`/api/entries/${slug}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ content: editor.value })
-                    });
-
-                    if (res.ok) {
-                        const btn = document.getElementById('doc-save');
-                        btn.textContent = '✓ Saved';
-                        setTimeout(() => {
-                            btn.textContent = '💾 Save';
-                        }, 2000);
-                    } else {
-                        alert('Save failed');
-                    }
-                } catch (e) {
-                    alert('Save error: ' + e.message);
-                }
-            }
-
-            switchView(viewName) {
-                document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-                document.getElementById(`${viewName}-view`).classList.add('active');
-
-                document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-                const btn = document.querySelector(`[data-view="${viewName}"]`);
-                if (btn) {
-                    btn.classList.add('active');
-                }
-
-                if (viewName === 'vault') this.loadVaultDocuments();
-                if (viewName === 'document') {
-                    this.switchDocMode('split');
-                }
-            }
-
-            async sendMessage() {
-                const input = document.getElementById('chat-input');
-                const message = input.value.trim();
-                if (!message) return;
-
-                this.addMessage('user', message);
-                input.value = '';
-
-                const settings = JSON.parse(localStorage.getItem('ratvault-settings') || '{}');
-
-                try {
-                    const response = await fetch('/api/chat', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            message,
-                            history: this.messages,
-                            provider: settings.provider || null,
-                            model: settings.model || null,
-                            api_key: settings.apiKey || null
-                        })
-                    });
-                    const data = await response.json();
-                    if (data.reply) {
-                        this.addMessage('assistant', data.reply);
-                        this.messages.push({ role: 'user', content: message });
-                        this.messages.push({ role: 'assistant', content: data.reply });
-                    } else if (data.error) {
-                        this.addMessage('error', `error: ${data.error}`);
-                    }
-                } catch (error) {
-                    this.addMessage('error', 'connection error');
-                }
-            }
-
-            addMessage(role, content) {
-                const messagesDiv = document.getElementById('chat-messages');
-                const messageEl = document.createElement('div');
-                messageEl.className = `message ${role}`;
-
-                const label = document.createElement('span');
-                label.className = 'message-label';
-                label.textContent = role === 'user' ? '<' : '>';
-                messageEl.appendChild(label);
-
-                const bubble = document.createElement('div');
-                bubble.className = 'message-bubble';
-                bubble.textContent = content;
-                messageEl.appendChild(bubble);
-
-                messagesDiv.appendChild(messageEl);
-                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-            }
-
-            async search(query) {
-                const resultsDiv = document.getElementById('search-results');
-                if (!query || query.length < 2) {
-                    resultsDiv.textContent = '';
-                    return;
-                }
-
-                try {
-                    const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-                    const results = await response.json();
-
-                    resultsDiv.textContent = '';
-
-                    if (results.length === 0) {
-                        const p = document.createElement('p');
-                        p.textContent = 'no results';
-                        p.style.color = 'var(--dim)';
-                        resultsDiv.appendChild(p);
-                        return;
-                    }
-
-                    results.forEach(r => {
-                        const item = document.createElement('div');
-                        item.className = 'result-item';
-
-                        const h4 = document.createElement('h4');
-                        h4.textContent = r.title || r.slug || 'Untitled';
-
-                        const p = document.createElement('p');
-                        p.textContent = r.summary || 'No summary';
-
-                        item.appendChild(h4);
-                        item.appendChild(p);
-                        resultsDiv.appendChild(item);
-                    });
-                } catch (error) {
-                    resultsDiv.textContent = '';
-                    const p = document.createElement('p');
-                    p.textContent = 'search error';
-                    p.style.color = 'red';
-                    resultsDiv.appendChild(p);
-                }
-            }
-
-            async loadStats() {
-                try {
-                    const response = await fetch('/api/entries');
-                    const entries = await response.json();
-                    document.getElementById('stat-entries').textContent = entries.length;
-                    document.getElementById('status-entries').textContent = entries.length;
-
-                    const provResponse = await fetch('/api/providers');
-                    const prov = await provResponse.json();
-                    document.getElementById('stat-provider').textContent = prov.provider.toUpperCase();
-                    document.getElementById('stat-model').textContent = prov.model.split('/')[0].toUpperCase();
-                    document.getElementById('status-model').textContent = prov.model.toUpperCase();
-
-                    // Render contribution grid
-                    this.renderContributionGrid(entries);
-                } catch (error) {
-                    // Stats load failed silently
-                }
-            }
-
-            async renderContributionGrid(entries) {
-                // Count entries by created date
-                const counts = {};
-                entries.forEach(e => {
-                    if (e.created) {
-                        counts[e.created] = (counts[e.created] || 0) + 1;
-                    }
-                });
-
-                const grid = document.getElementById('contribution-grid');
-                grid.textContent = '';
-
-                const today = new Date();
-                const start = new Date(today);
-                start.setDate(today.getDate() - 13);
-
-                // Align to Monday of the week containing 'start'
-                const dayOfWeek = start.getDay();
-                const alignedStart = new Date(start);
-                alignedStart.setDate(start.getDate() - ((dayOfWeek + 6) % 7));
-
-                // Build 7 rows × 2 columns grid (14 days) in row-major order
-                for (let row = 0; row < 7; row++) {
-                    for (let col = 0; col < 2; col++) {
-                        const d = new Date(alignedStart);
-                        d.setDate(alignedStart.getDate() + col * 7 + row);
-                        const dateStr = d.toISOString().split('T')[0];
-                        const count = counts[dateStr] || 0;
-
-                        const cell = document.createElement('div');
-                        cell.className = 'contribution-cell';
-
-                        // Color based on count
-                        if (count === 0) {
-                            cell.classList.add('empty');
-                        } else if (count <= 2) {
-                            cell.classList.add('low');
-                        } else if (count <= 4) {
-                            cell.classList.add('medium');
-                        } else {
-                            cell.classList.add('high');
-                        }
-
-                        // Tooltip
-                        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-                        const dayName = dayNames[d.getDay()];
-                        cell.title = `${dayName} ${dateStr}: ${count} doc${count !== 1 ? 's' : ''}`;
-
-                        grid.appendChild(cell);
-                    }
-                }
-            }
-
-            // ── Crypto helpers (AES-GCM via Web Crypto API) ─────────────────
-            async _deriveKey(password, salt) {
-                const enc = new TextEncoder();
-                const keyMaterial = await crypto.subtle.importKey(
-                    'raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']
-                );
-                return crypto.subtle.deriveKey(
-                    { name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' },
-                    keyMaterial,
-                    { name: 'AES-GCM', length: 256 },
-                    false, ['encrypt', 'decrypt']
-                );
-            }
-
-            async encryptApiKey(apiKey, password) {
-                const enc = new TextEncoder();
-                const salt = crypto.getRandomValues(new Uint8Array(16));
-                const iv   = crypto.getRandomValues(new Uint8Array(12));
-                const key  = await this._deriveKey(password, salt);
-                const ciphertext = await crypto.subtle.encrypt(
-                    { name: 'AES-GCM', iv }, key, enc.encode(apiKey)
-                );
-                const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
-                return JSON.stringify({ salt: b64(salt), iv: b64(iv), ct: b64(ciphertext) });
-            }
-
-            async decryptApiKey(encrypted, password) {
-                const { salt, iv, ct } = JSON.parse(encrypted);
-                const fromB64 = (s) => Uint8Array.from(atob(s), c => c.charCodeAt(0));
-                const key = await this._deriveKey(password, fromB64(salt));
-                const plain = await crypto.subtle.decrypt(
-                    { name: 'AES-GCM', iv: fromB64(iv) }, key, fromB64(ct)
-                );
-                return new TextDecoder().decode(plain);
-            }
-
-            // ── Key unlock flow ────────────────────────────────────────────
-            async unlockKeys() {
-                const pw = document.getElementById('master-pw-input').value;
-                if (!pw) { this._setStatus('Enter your master password first.'); return; }
-
-                const provider = document.getElementById('provider-select').value;
-                const storageKey = `ratvault-key-${provider}`;
-                const encrypted  = localStorage.getItem(storageKey);
-
-                if (!encrypted) {
-                    this._setStatus(`No saved key for ${provider}. Enter the key and save to encrypt it.`);
-                    return;
-                }
-
-                try {
-                    const apiKey = await this.decryptApiKey(encrypted, pw);
-                    document.getElementById('api-key-input').value = apiKey;
-                    this._setMasterHint('✓ Key decrypted and loaded');
-                    this._setStatus(`${provider} API key unlocked.`);
-                } catch {
-                    this._setMasterHint('✗ Wrong password or corrupted key');
-                    this._setStatus('Decryption failed — check master password.');
-                }
-            }
-
-            _setStatus(msg) {
-                const el = document.getElementById('config-status');
-                if (el) el.textContent = msg;
-            }
-
-            _setMasterHint(msg) {
-                const el = document.getElementById('master-pw-hint');
-                if (el) el.textContent = msg;
-            }
-
-            // ── Model lists (fallback / curated) ──────────────────────────
-            MODELS = {
-                ollama: [],  // populated by fetchModels()
-                openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
-                anthropic: [
-                    'claude-opus-4-7', 'claude-sonnet-4-6',
-                    'claude-haiku-4-5-20251001', 'claude-sonnet-4-5', 'claude-opus-4-5'
-                ],
-                openrouter: [
-                    'anthropic/claude-opus-4', 'anthropic/claude-sonnet-4-5',
-                    'openai/gpt-4o', 'openai/gpt-4o-mini',
-                    'mistralai/mistral-7b-instruct', 'google/gemini-pro',
-                    'meta-llama/llama-3.1-70b-instruct'
-                ],
-            };
-
-            API_KEY_HINTS = {
-                ollama: 'No key needed — Ollama runs locally at localhost:11434',
-                openai: 'Get key at platform.openai.com/api-keys',
-                anthropic: 'Get key at console.anthropic.com/settings/keys',
-                openrouter: 'Get key at openrouter.ai/keys',
-            };
-
-            loadSettings() {
-                const settings = JSON.parse(localStorage.getItem('ratvault-settings') || '{}');
-                const provider = settings.provider || 'ollama';
-                document.getElementById('provider-select').value = provider;
-                this.updateModelOptions(provider, settings.model);
-            }
-
-            updateModelOptions(provider, selectedModel) {
-                const modelSel  = document.getElementById('model-select');
-                const fetchBtn  = document.getElementById('fetch-models-btn');
-                const keyGroup  = document.getElementById('api-key-group');
-                const hint      = document.getElementById('api-key-hint');
-                const provHint  = document.getElementById('provider-hint');
-                const fetchHint = document.getElementById('model-fetch-hint');
-
-                // Show/hide API key field
-                keyGroup.style.display  = provider === 'ollama' ? 'none' : 'block';
-                hint.textContent        = this.API_KEY_HINTS[provider] || '';
-                provHint.textContent    = this.API_KEY_HINTS[provider] || '';
-
-                // Show encrypted key status
-                const storageKey = `ratvault-key-${provider}`;
-                const hasEncKey  = !!localStorage.getItem(storageKey);
-                if (hasEncKey && provider !== 'ollama') {
-                    this._setMasterHint('🔒 Encrypted key found — enter master password to unlock');
-                } else if (provider !== 'ollama') {
-                    this._setMasterHint('No saved key yet — enter key below and save to encrypt it.');
-                }
-
-                // Populate model dropdown from cache
-                const models = this.MODELS[provider] || [];
-                modelSel.textContent = '';
-
-                if (models.length === 0) {
-                    const placeholder = document.createElement('option');
-                    placeholder.value = '';
-                    placeholder.textContent = provider === 'ollama'
-                        ? '← click Fetch to load local models'
-                        : '← click Fetch to load live models';
-                    modelSel.appendChild(placeholder);
-                    fetchHint.textContent = 'Click ↻ Fetch to load available models.';
-                } else {
-                    models.forEach(m => {
-                        const opt = document.createElement('option');
-                        opt.value = m;
-                        opt.textContent = m;
-                        modelSel.appendChild(opt);
-                    });
-                    if (selectedModel) modelSel.value = selectedModel;
-                    fetchHint.textContent = `${models.length} models loaded. Click ↻ Fetch to refresh.`;
-                }
-
-                fetchBtn.style.display = 'block';  // always show Fetch for all providers
-            }
-
-            async openSettings() {
-                document.getElementById('settings-modal').classList.add('active');
-                this.loadSettings();
-                try {
-                    const res = await fetch('/api/config');
-                    const cfg = await res.json();
-                    const parts = [];
-                    if (cfg.has_openai_key)     parts.push('OpenAI ✓');
-                    if (cfg.has_anthropic_key)  parts.push('Anthropic ✓');
-                    if (cfg.has_openrouter_key) parts.push('OpenRouter ✓');
-                    this._setStatus(parts.length
-                        ? 'Server keys: ' + parts.join(' · ')
-                        : 'No server-side API keys configured yet.');
-                } catch (_) {
-                    this._setStatus('Could not reach server config.');
-                }
-            }
-
-            closeSettings() {
-                document.getElementById('settings-modal').classList.remove('active');
-            }
-
-            async fetchModels() {
-                const provider = document.getElementById('provider-select').value;
-                const apiKey   = document.getElementById('api-key-input').value.trim();
-                const modelSel = document.getElementById('model-select');
-                const fetchBtn = document.getElementById('fetch-models-btn');
-                const hint     = document.getElementById('model-fetch-hint');
-
-                if (provider !== 'ollama' && !apiKey) {
-                    hint.textContent = 'Enter (or unlock) your API key first.';
-                    return;
-                }
-
-                fetchBtn.disabled = true;
-                fetchBtn.textContent = '...';
-
-                try {
-                    let models = [];
-
-                    if (provider === 'ollama') {
-                        const res = await fetch('http://localhost:11434/api/tags');
-                        if (!res.ok) throw new Error('Ollama not running at localhost:11434');
-                        const data = await res.json();
-                        models = (data.models || []).map(m => m.name);
-                    } else if (provider === 'openai') {
-                        const res = await fetch('https://api.openai.com/v1/models', {
-                            headers: { 'Authorization': `Bearer ${apiKey}` }
-                        });
-                        if (!res.ok) throw new Error('OpenAI: ' + res.status);
-                        const data = await res.json();
-                        models = data.data
-                            .filter(m => /gpt-4|gpt-3\.5/.test(m.id))
-                            .map(m => m.id)
-                            .sort()
-                            .slice(0, 30);
-                    } else if (provider === 'anthropic') {
-                        // Anthropic has no public model list endpoint; use curated list
-                        models = this.MODELS.anthropic;
-                        hint.textContent = 'Anthropic does not expose a model list — showing curated list.';
-                    } else if (provider === 'openrouter') {
-                        const res = await fetch('https://openrouter.ai/api/v1/models', {
-                            headers: { 'Authorization': `Bearer ${apiKey}` }
-                        });
-                        if (!res.ok) throw new Error('OpenRouter: ' + res.status);
-                        const data = await res.json();
-                        models = data.data.map(m => m.id).slice(0, 40);
-                    }
-
-                    if (models.length === 0) {
-                        hint.textContent = 'No models found.';
-                        return;
-                    }
-
-                    this.MODELS[provider] = models;
-                    modelSel.textContent = '';
-                    models.forEach(m => {
-                        const opt = document.createElement('option');
-                        opt.value = m;
-                        opt.textContent = m;
-                        modelSel.appendChild(opt);
-                    });
-                    hint.textContent = `✓ ${models.length} models loaded from ${provider}.`;
-                } catch (e) {
-                    hint.textContent = 'Error: ' + e.message;
-                } finally {
-                    fetchBtn.disabled = false;
-                    fetchBtn.textContent = '↻ Fetch';
-                }
-            }
-
-            async saveSettings() {
-                const provider = document.getElementById('provider-select').value;
-                const model    = document.getElementById('model-select').value;
-                const apiKey   = document.getElementById('api-key-input').value.trim();
-                const masterPw = document.getElementById('master-pw-input').value;
-
-                if (!model) {
-                    this._setStatus('Select a model first (click ↻ Fetch).'); return;
-                }
-                if (provider !== 'ollama' && !apiKey) {
-                    this._setStatus('Enter an API key for ' + provider); return;
-                }
-
-                // Encrypt and store API key if provided
-                if (apiKey && provider !== 'ollama') {
-                    if (!masterPw) {
-                        this._setStatus('Set a master password to encrypt your API key securely.');
-                        return;
-                    }
-                    try {
-                        const encrypted = await this.encryptApiKey(apiKey, masterPw);
-                        localStorage.setItem(`ratvault-key-${provider}`, encrypted);
-                        this._setMasterHint('🔒 Key encrypted and stored');
-                    } catch (e) {
-                        this._setStatus('Encryption failed: ' + e.message); return;
-                    }
-                }
-
-                // Store non-sensitive settings
-                localStorage.setItem('ratvault-settings', JSON.stringify({ provider, model }));
-
-                // Push to server config (key goes to config.yaml on server, never localStorage plaintext)
-                try {
-                    const res = await fetch('/api/config', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ provider, model, api_key: apiKey || null }),
-                    });
-                    if (!res.ok) {
-                        this._setStatus('Server config save failed.'); return;
-                    }
-                } catch (e) {
-                    this._setStatus('Could not reach server: ' + e.message); return;
-                }
-
-                this.closeSettings();
-                this.updateStatusBar(provider, model);
-            }
-
-            updateStatusBar(provider, model) {
-                const el = document.getElementById('status-model');
-                if (el) el.textContent = `${provider}:${model}`;
-            }
-
-            updateTokenDisplay() {
-                const tokenData = JSON.parse(localStorage.getItem('ratvault-tokens') || '{"used": 0, "max": 11539}');
-                const used = tokenData.used || 0;
-                const max = tokenData.max || 11539;
-                const percent = Math.round((used / max) * 100);
-
-                const displayEl = document.getElementById('token-display');
-                const percentEl = document.getElementById('token-percent');
-                if (displayEl) displayEl.textContent = `${used}/${max}`;
-                if (percentEl) percentEl.textContent = `${percent}%`;
-            }
-
-            async loadVaultDocuments() {
-                try {
-                    const res = await fetch('/api/entries');
-                    const entries = await res.json();
-                    const vaultList = document.getElementById('vault-list');
-
-                    if (!entries || entries.length === 0) {
-                        vaultList.innerHTML = '<div style="color: var(--dim); padding: 12px; text-align: center;">No documents in vault yet. Add .md files to Notes/ folder.</div>';
-                        return;
-                    }
-
-                    vaultList.innerHTML = entries.map(entry => `
-                        <div style="padding: 8px; border: 1px solid var(--border); cursor: pointer; transition: background 0.1s;" class="vault-doc-item" data-slug="${entry.slug}">
-                            <div style="font-weight: 600; color: var(--fg);">${entry.title || 'Untitled'}</div>
-                            <div style="font-size: 12px; color: var(--dim); margin-top: 2px;">${entry.summary || 'No summary'}</div>
-                        </div>
-                    `).join('');
-
-                    // Add click handlers
-                    document.querySelectorAll('.vault-doc-item').forEach(item => {
-                        item.addEventListener('click', () => this.openDocument(item.dataset.slug));
-                        item.addEventListener('mouseenter', (e) => e.target.closest('.vault-doc-item').style.background = 'rgba(255,255,255,0.05)');
-                        item.addEventListener('mouseleave', (e) => e.target.closest('.vault-doc-item').style.background = 'transparent');
-                    });
-                } catch (e) {
-                    document.getElementById('vault-list').innerHTML = `<div style="color: #ff4444; padding: 12px;">Error loading documents: ${e.message}</div>`;
-                }
-            }
-
-
-            createNewDocument() {
-                const title = prompt('Document title:');
-                if (!title) return;
-
-                const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-                const initialContent = `# ${title}\n\n`;
-
-                this.createNewDocumentOnServer(title, slug, initialContent);
-            }
-
-            async createNewDocumentOnServer(title, slug, content) {
-                try {
-                    const res = await fetch('/api/entries', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            title,
-                            slug,
-                            content
-                        })
-                    });
-
-                    if (res.ok) {
-                        const data = await res.json();
-                        this.currentDocSlug = slug;
-                        document.getElementById('doc-title').textContent = title;
-                        document.getElementById('doc-editor').value = content;
-                        document.getElementById('doc-save').style.display = 'block';
-                        document.getElementById('doc-editor').dispatchEvent(new Event('input'));
-                        this.switchView('document');
-                    } else {
-                        alert('Failed to create document');
-                    }
-                } catch (e) {
-                    alert('Error: ' + e.message);
-                }
-            }
-
-            async openDocument(slug) {
-                try {
-                    const res = await fetch(`/api/entries/${slug}`);
-                    const entry = await res.json();
-
-                    // Store slug for saving
-                    this.currentDocSlug = slug;
-
-                    // Populate document view
-                    document.getElementById('doc-title').textContent = entry.title || 'Untitled';
-                    document.getElementById('doc-editor').value = entry.body || '';
-                    document.getElementById('doc-save').style.display = 'block';
-
-                    // Trigger preview update
-                    document.getElementById('doc-editor').dispatchEvent(new Event('input'));
-
-                    // Switch to document view
-                    this.switchView('document');
-                } catch (e) {
-                    alert('Error opening document: ' + e.message);
-                }
-            }
-
-            initProfileUpload() {
-                const uploadInput = document.getElementById('profile-upload');
-                const profileMedia = document.getElementById('profile-media');
-
-                uploadInput.addEventListener('change', async (e) => {
-                    const file = e.target.files[0];
-                    if (!file) return;
-
-                    try {
-                        const formData = new FormData();
-                        formData.append('file', file);
-
-                        const res = await fetch('/api/profile', {
-                            method: 'POST',
-                            body: formData,
-                        });
-
-                        if (res.ok) {
-                            const data = await res.json();
-
-                            // Replace media content
-                            profileMedia.textContent = '';
-
-                            if (file.type.startsWith('image/')) {
-                                const img = document.createElement('img');
-                                img.src = data.url;
-                                img.style.cssText = 'width:100%; height:100%; object-fit:cover; display:block; filter:grayscale(1) contrast(1.1);';
-                                profileMedia.appendChild(img);
-                            } else {
-                                const video = document.createElement('video');
-                                video.autoplay = true;
-                                video.loop = true;
-                                video.muted = true;
-                                video.playsInline = true;
-                                video.style.cssText = 'width:100%; height:100%; object-fit:cover; display:block; filter:grayscale(1) contrast(1.1);';
-                                const source = document.createElement('source');
-                                source.src = data.url;
-                                source.type = file.type;
-                                video.appendChild(source);
-                                profileMedia.appendChild(video);
-                            }
-
-                            alert('Profile updated!');
-                            uploadInput.value = '';
-                        } else {
-                            alert('Upload failed');
-                        }
-                    } catch (e) {
-                        alert('Error uploading: ' + e.message);
-                    }
-                });
+            try {
+                const enc = await this.encryptKey(apiKey, masterPw);
+                localStorage.setItem(`rv-key-${provider}`, enc);
+            } catch (e) {
+                status.textContent = 'Encryption failed';
+                return;
             }
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            new RatVault();
-        });
-    </script>
+        localStorage.setItem('rv-settings', JSON.stringify({provider, model}));
+
+        try {
+            await fetch('/api/config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({provider, model, api_key: apiKey || null}),
+            });
+        } catch (e) {}
+
+        this.closeConfig();
+        this.toast('✓ Config saved');
+        this.loadStats();
+    }
+
+    // ==================== CRYPTO ====================
+    async _deriveKey(pw, salt) {
+        const enc = new TextEncoder();
+        const km = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveKey']);
+        return crypto.subtle.deriveKey(
+            {name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256'},
+            km, {name: 'AES-GCM', length: 256}, false, ['encrypt', 'decrypt']
+        );
+    }
+
+    async encryptKey(key, pw) {
+        const enc = new TextEncoder();
+        const salt = crypto.getRandomValues(new Uint8Array(16));
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const k = await this._deriveKey(pw, salt);
+        const ct = await crypto.subtle.encrypt({name:'AES-GCM',iv}, k, enc.encode(key));
+        const b64 = b => btoa(String.fromCharCode(...new Uint8Array(b)));
+        return JSON.stringify({salt: b64(salt), iv: b64(iv), ct: b64(ct)});
+    }
+
+    async decryptKey(encStr, pw) {
+        const {salt, iv, ct} = JSON.parse(encStr);
+        const fromB64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+        const k = await this._deriveKey(pw, fromB64(salt));
+        const plain = await crypto.subtle.decrypt(
+            {name:'AES-GCM',iv:fromB64(iv)}, k, fromB64(ct)
+        );
+        return new TextDecoder().decode(plain);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    window.ratvault = new RatVault();
+});
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+}
+</script>
 </body>
 </html>
