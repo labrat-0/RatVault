@@ -583,8 +583,6 @@
             }
         }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
 </head>
 <body>
     <script>
@@ -915,27 +913,7 @@
                     document.getElementById('stat-model').textContent = prov.model.split('/')[0].toUpperCase();
                     document.getElementById('status-model').textContent = prov.model.toUpperCase();
                 } catch (error) {
-                    console.error('Stats error', error);
-                }
-            }
-
-            async loadAnalytics() {
-                try {
-                    const response = await fetch('/api/analytics');
-                    const data = await response.json();
-
-                    const content = document.getElementById('analytics-content');
-                    content.textContent = '';
-
-                    if (data.providers && Object.keys(data.providers).length > 0) {
-                        const pDiv = document.createElement('div');
-                        pDiv.style.fontSize = '11px';
-                        pDiv.style.color = 'var(--dim)';
-                        pDiv.textContent = 'Providers: ' + Object.entries(data.providers).map(([k,v]) => `${k}(${v})`).join(' · ');
-                        content.appendChild(pDiv);
-                    }
-                } catch (error) {
-                    console.error('Analytics error', error);
+                    // Stats load failed silently
                 }
             }
 
@@ -1036,56 +1014,6 @@
                 if (el) el.textContent = `${provider}:${model}`;
             }
 
-            initDocumentCreation() {
-                const contentEl = document.getElementById('doc-content');
-                const previewEl = document.getElementById('doc-preview');
-                const saveBtn = document.getElementById('doc-save');
-
-                const updatePreview = () => {
-                    const content = contentEl.value;
-                    try {
-                        const html = window.marked ? window.marked.parse(content) : `<pre>${content}</pre>`;
-                        const clean = window.DOMPurify ? window.DOMPurify.sanitize(html) : html;
-                        previewEl.innerHTML = clean;
-                    } catch (e) {
-                        previewEl.innerHTML = `<pre>${content}</pre>`;
-                    }
-                };
-
-                contentEl.addEventListener('input', updatePreview);
-
-                saveBtn.addEventListener('click', async () => {
-                    const title = document.getElementById('doc-title').value || 'untitled';
-                    const content = contentEl.value;
-
-                    if (!content.trim()) {
-                        alert('Document is empty');
-                        return;
-                    }
-
-                    try {
-                        const res = await fetch('/api/docs', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ title, content }),
-                        });
-
-                        if (res.ok) {
-                            alert('Document saved to vault!');
-                            document.getElementById('doc-title').value = '';
-                            contentEl.value = '';
-                            updatePreview();
-                            // Reload vault list
-                            if (this.loadVaultDocuments) this.loadVaultDocuments();
-                        }
-                    } catch (e) {
-                        alert('Error saving document: ' + e.message);
-                    }
-                });
-
-                updatePreview();
-            }
-
             async loadVaultDocuments() {
                 try {
                     const res = await fetch('/api/entries');
@@ -1093,7 +1021,7 @@
                     const vaultList = document.getElementById('vault-list');
 
                     if (!entries || entries.length === 0) {
-                        vaultList.innerHTML = '<div style="color: var(--dim); padding: 12px; text-align: center;">No documents yet. Create one in "New Doc"</div>';
+                        vaultList.innerHTML = '<div style="color: var(--dim); padding: 12px; text-align: center;">No documents in vault yet. Add .md files to Notes/ folder.</div>';
                         return;
                     }
 

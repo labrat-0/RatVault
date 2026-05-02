@@ -383,59 +383,6 @@ Use the vault entries above as context when answering. If the user asks about so
         return {"error": str(e), "reply": None}
 
 
-class DocRequest(BaseModel):
-    title: str
-    content: str
-
-
-@app.post("/api/docs")
-async def create_document(request: DocRequest):
-    """Create and save a new document to the vault."""
-    try:
-        notes_dir = Path("Notes")
-        notes_dir.mkdir(exist_ok=True)
-
-        # Generate filename from title
-        filename = request.title.lower().replace(" ", "-")
-        # Remove invalid filename characters
-        filename = re.sub(r'[^\w\-]', '', filename)
-        if not filename:
-            filename = f"doc-{datetime.now().timestamp()}"
-
-        filepath = notes_dir / f"{filename}.md"
-
-        # Avoid overwriting existing files
-        counter = 1
-        base_filepath = filepath
-        while filepath.exists():
-            filename_parts = filepath.stem.rsplit('-', 1)
-            if filename_parts[-1].isdigit():
-                base_name = filename_parts[0]
-                counter = int(filename_parts[-1]) + 1
-            else:
-                base_name = filepath.stem
-            filepath = notes_dir / f"{base_name}-{counter}.md"
-
-        # Write the document with frontmatter
-        content = f"""---
-title: {request.title}
-created: {datetime.now().isoformat()}
----
-
-{request.content}
-"""
-
-        filepath.write_text(content)
-
-        return {
-            "success": True,
-            "filename": filepath.name,
-            "message": f"Document '{request.title}' saved successfully"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 from fastapi import UploadFile, File
 from fastapi.responses import FileResponse as FastAPIFileResponse
 
