@@ -528,3 +528,8 @@ async def serve_files(file_path: str):
         return FastAPIFileResponse("dashboard/index.html")
     else:
         return FastAPIFileResponse("dashboard/index.html")
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8055)

@@ -31,7 +31,7 @@ pip install -r requirements.txt
 python serve.py
 ```
 
-Then open `http://localhost:8000` in your browser.
+Then open `http://localhost:8055` in your browser.
 
 ### 3. Add Documents
 
