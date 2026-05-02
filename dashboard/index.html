@@ -321,6 +321,7 @@
             flex-direction: column;
             gap: 0;
             overflow-y: auto;
+            height: 100%;
         }
 
         .sidebar-card {
@@ -600,14 +601,6 @@
     <main>
         <!-- View Container -->
         <div class="view-container">
-            <!-- Navigation -->
-            <div class="nav-bar">
-                <button class="nav-btn active" data-view="chat">Chat</button>
-                <button class="nav-btn" data-view="search">Search</button>
-                <button class="nav-btn" data-view="analytics">Stats</button>
-                <button class="nav-btn" id="settings-btn">Config</button>
-            </div>
-
             <!-- Chat View -->
             <div class="view active" id="chat-view">
                 <div class="chat-box">
@@ -677,6 +670,14 @@
             <div class="sidebar-card">
                 <div class="card-title">About</div>
                 <div class="card-text">RatVault — Multi-LLM knowledge system. Terminal-first. Offline-ready.</div>
+            </div>
+
+            <!-- Navigation at bottom -->
+            <div class="nav-bar" style="flex-direction: column; border-top: 1px solid var(--border); margin-top: auto;">
+                <button class="nav-btn active" data-view="chat" style="border-right: none; border-bottom: 1px solid var(--border);">Chat</button>
+                <button class="nav-btn" data-view="search" style="border-right: none; border-bottom: 1px solid var(--border);">Search</button>
+                <button class="nav-btn" data-view="analytics" style="border-right: none; border-bottom: 1px solid var(--border);">Stats</button>
+                <button class="nav-btn" id="settings-btn" style="border-right: none;">Config</button>
             </div>
         </div>
     </main>
