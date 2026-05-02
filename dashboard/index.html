@@ -590,7 +590,7 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW:', err));
+                navigator.serviceWorker.register('/sw.js').catch(() => {});
             });
         }
     </script>
@@ -654,6 +654,17 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Vault/Documents View -->
+            <div class="view" id="vault-view">
+                <div style="display: flex; flex-direction: column; gap: 8px; height: 100%; overflow: hidden;">
+                    <div style="display: flex; gap: 4px;">
+                        <input type="text" id="vault-search" placeholder="search documents..." style="flex: 1; padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--fg); font-family: var(--mono);">
+                        <button id="vault-refresh" style="padding: 6px 12px; background: rgba(0,255,65,0.15); border: 1px solid rgba(0,255,65,0.3); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 12px;">Refresh</button>
+                    </div>
+                    <div id="vault-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;"></div>
+                </div>
+            </div>
         </div>
 
         <!-- Sidebar -->
@@ -709,6 +720,7 @@
                 <button class="nav-btn active" data-view="chat" style="border-right: none; border-bottom: 1px solid var(--border);">Chat</button>
                 <button class="nav-btn" data-view="search" style="border-right: none; border-bottom: 1px solid var(--border);">Search</button>
                 <button class="nav-btn" data-view="newdoc" style="border-right: none; border-bottom: 1px solid var(--border);">New Doc</button>
+                <button class="nav-btn" data-view="vault" style="border-right: none; border-bottom: 1px solid var(--border);">Vault</button>
                 <button class="nav-btn" data-view="analytics" style="border-right: none; border-bottom: 1px solid var(--border);">Stats</button>
                 <button class="nav-btn" id="settings-btn" style="border-right: none;">Config</button>
             </div>
@@ -799,7 +811,27 @@
                 // Profile Upload
                 this.initProfileUpload();
 
+                // Vault View
+                this.initVaultView();
+
                 this.loadSettings();
+            }
+
+            initVaultView() {
+                const searchInput = document.getElementById('vault-search');
+                const refreshBtn = document.getElementById('vault-refresh');
+                const vaultList = document.getElementById('vault-list');
+
+                refreshBtn.addEventListener('click', () => this.loadVaultDocuments());
+
+                searchInput.addEventListener('input', (e) => {
+                    const query = e.target.value.toLowerCase();
+                    const items = document.querySelectorAll('.vault-doc-item');
+                    items.forEach(item => {
+                        const text = item.textContent.toLowerCase();
+                        item.style.display = text.includes(query) ? '' : 'none';
+                    });
+                });
             }
 
             switchView(viewName) {
@@ -810,6 +842,7 @@
                 document.querySelector(`[data-view="${viewName}"]`).classList.add('active');
 
                 if (viewName === 'analytics') this.loadAnalytics();
+                if (viewName === 'vault') this.loadVaultDocuments();
             }
 
             async sendMessage() {
@@ -1080,10 +1113,12 @@
                         });
 
                         if (res.ok) {
-                            alert('Document saved!');
+                            alert('Document saved to vault!');
                             document.getElementById('doc-title').value = '';
                             contentEl.value = '';
                             updatePreview();
+                            // Reload vault list
+                            if (this.loadVaultDocuments) this.loadVaultDocuments();
                         }
                     } catch (e) {
                         alert('Error saving document: ' + e.message);
@@ -1091,6 +1126,66 @@
                 });
 
                 updatePreview();
+            }
+
+            async loadVaultDocuments() {
+                try {
+                    const res = await fetch('/api/entries');
+                    const entries = await res.json();
+                    const vaultList = document.getElementById('vault-list');
+
+                    if (!entries || entries.length === 0) {
+                        vaultList.innerHTML = '<div style="color: var(--dim); padding: 12px; text-align: center;">No documents yet. Create one in "New Doc"</div>';
+                        return;
+                    }
+
+                    vaultList.innerHTML = entries.map(entry => `
+                        <div style="padding: 8px; border: 1px solid var(--border); cursor: pointer; transition: background 0.1s;" class="vault-doc-item" data-slug="${entry.slug}">
+                            <div style="font-weight: 600; color: var(--fg);">${entry.title || 'Untitled'}</div>
+                            <div style="font-size: 12px; color: var(--dim); margin-top: 2px;">${entry.summary || 'No summary'}</div>
+                        </div>
+                    `).join('');
+
+                    // Add click handlers
+                    document.querySelectorAll('.vault-doc-item').forEach(item => {
+                        item.addEventListener('click', () => this.openDocument(item.dataset.slug));
+                        item.addEventListener('mouseenter', (e) => e.target.closest('.vault-doc-item').style.background = 'rgba(255,255,255,0.05)');
+                        item.addEventListener('mouseleave', (e) => e.target.closest('.vault-doc-item').style.background = 'transparent');
+                    });
+                } catch (e) {
+                    document.getElementById('vault-list').innerHTML = `<div style="color: #ff4444; padding: 12px;">Error loading documents: ${e.message}</div>`;
+                }
+            }
+
+            async openDocument(slug) {
+                try {
+                    const res = await fetch(`/api/entries/${slug}`);
+                    const entry = await res.json();
+
+                    // Show in a modal or switch view
+                    const modal = document.createElement('div');
+                    modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 2000;';
+                    modal.innerHTML = `
+                        <div style="background: var(--bg); border: 1px solid var(--border); padding: 16px; max-width: 90%; max-height: 90%; overflow-y: auto; width: 600px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <h2 style="margin: 0; color: var(--fg);">${entry.title || 'Untitled'}</h2>
+                                <button style="background: none; border: 1px solid var(--border); color: var(--fg); cursor: pointer; padding: 4px 8px; font-family: var(--mono);">✕</button>
+                            </div>
+                            <div style="font-size: 12px; color: var(--dim); margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+                                Created: ${new Date(entry.date).toLocaleDateString()}
+                            </div>
+                            <div style="color: var(--fg); line-height: 1.6;">${entry.content}</div>
+                        </div>
+                    `;
+
+                    document.body.appendChild(modal);
+                    modal.querySelector('button').addEventListener('click', () => modal.remove());
+                    modal.addEventListener('click', (e) => {
+                        if (e.target === modal) modal.remove();
+                    });
+                } catch (e) {
+                    alert('Error opening document: ' + e.message);
+                }
             }
 
             initProfileUpload() {
