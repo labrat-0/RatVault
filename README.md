@@ -1,20 +1,19 @@
 <div align="center">
   <img src="dashboard/logo-256.png" alt="RatVault Logo" width="256" height="256">
   <h1>RatVault 🐀</h1>
-  <p><strong>A multi-LLM knowledge vault inspired by <a href="https://github.com/karpathy/recipes">Andrej Karpathy's "Recipe for Training Neural Networks"</a></strong></p>
-  <p>Warm gratitude to Andrej for the insights that made this project possible.</p>
+  <p><strong>A terminal-first knowledge vault for managing and querying documents with LLMs</strong></p>
+  <p><em>⚠️ Currently in active development. Features and API may change.</em></p>
 </div>
 
-RatVault is a flexible, open-source knowledge management system that ingests raw notes, processes them with any LLM provider, and organizes them into a beautiful Obsidian-native vault.
+RatVault is a simple, open-source knowledge management system that lets you store markdown documents and query them using any LLM provider (OpenAI, Anthropic Claude, Ollama local, OpenRouter, etc).
 
 ## ✨ Features
 
 - 🤖 **Multi-LLM Support** — Works with OpenAI, Anthropic (Claude), Ollama (local), OpenRouter, and more  
-- 📝 **Raw → Structured** — Auto-generates summaries, tags, and cross-references from raw markdown  
-- 🖼️ **Media Preservation** — Automatically handles images, videos, and media files  
-- 🌐 **PWA Dashboard** — Web interface that works offline (no build step required)  
-- 🔭 **Obsidian Native** — Vault structure works directly in Obsidian with Dataview support  
-- ⚡ **Zero Setup** — One command to start: `python ingest.py --setup`  
+- 📝 **Simple Markdown Vault** — Store `.md` files and query them with LLMs  
+- 🌐 **Web Dashboard** — Clean, minimal interface for browsing documents and chatting  
+- ⚡ **Zero Overhead** — Just drop `.md` files in `Notes/` and start querying  
+- 🔒 **Privacy First** — Local Ollama support for 100% offline operation  
 
 ## 🚀 Quick Start
 
@@ -26,328 +25,140 @@ cd RatVault
 pip install -r requirements.txt
 ```
 
-### 2. Configure
+### 2. Start the Web Dashboard
 
 ```bash
-python ingest.py --setup
+python serve.py
 ```
 
-Choose your provider and enter API key (or use local Ollama). Configuration is saved to `.env` or `config.yaml`.
+Then open `http://localhost:8000` in your browser.
 
-### 3. Ingest Your First Note
+### 3. Add Documents
 
-Drop a markdown file into the `inbox/` folder, then run:
+Drop markdown files into the `Notes/` folder. Each file should have a `.md` extension:
 
-```bash
-python ingest.py --dry-run    # See what will happen
-python ingest.py              # Actually process
+```
+Notes/
+├── how-to-python.md
+├── async-patterns.md
+└── ml-concepts.md
 ```
 
-### 4. View in Obsidian
+### 4. Configure Your LLM
 
-Open the repo root as a vault in Obsidian:
-- **File** → **Open folder as vault** → Select this directory
-- Navigate to `Notes/` folder
-- Check out `home.md` for the dashboard
+Click **Config** in the dashboard sidebar to:
+- Choose your provider (Ollama, OpenAI, Anthropic, OpenRouter)
+- Select a model
+- Enter API key (if needed)
 
-### 5. (Optional) Web Dashboard
+### 5. Start Querying
 
-```bash
-python ingest.py --serve
-```
-
-Then open `http://localhost:8055` in your browser. Install as PWA for offline access.
+Go to **Chat** and ask questions about your documents. RatVault automatically includes relevant documents as context for the LLM.
 
 ---
 
-## 📖 Configuration
+## 📁 Document Format
+
+Store documents as simple markdown files in the `Notes/` folder:
+
+```markdown
+# My Document Title
+
+Your content here...
+
+## Section
+
+More content...
+```
+
+Each document is automatically indexed and made available to the LLM for context-aware responses.
+
+---
+
+## 💻 Configuration
 
 ### Provider Setup
 
-Choose one of these methods:
-
-#### Option A: `.env` file
-```bash
-cp .env.example .env
-# Edit .env with your settings
+**Ollama (Local - Recommended)**
+```
+Provider: Ollama
+Model: mistral (or any model you've pulled)
+No API key needed
 ```
 
-**OpenAI:**
+**OpenAI**
 ```
-RATVAULT_PROVIDER=openai
-RATVAULT_MODEL=gpt-4o-mini
-OPENAI_API_KEY=sk-...
-```
-
-**Anthropic (Claude):**
-```
-RATVAULT_PROVIDER=anthropic
-RATVAULT_MODEL=claude-3-haiku-20240307
-ANTHROPIC_API_KEY=sk-ant-...
+Provider: OpenAI
+Model: gpt-4o-mini
+API Key: sk-...
 ```
 
-**Ollama (Local):**
+**Anthropic (Claude)**
 ```
-RATVAULT_PROVIDER=ollama
-RATVAULT_MODEL=llama3.2
-OLLAMA_BASE_URL=http://localhost:11434
-```
-
-**OpenRouter:**
-```
-RATVAULT_PROVIDER=openrouter
-RATVAULT_MODEL=anthropic/claude-3-haiku
-OPENROUTER_API_KEY=sk-or-...
+Provider: Anthropic
+Model: claude-haiku-4-5-20251001
+API Key: sk-ant-...
 ```
 
-#### Option B: `config.yaml`
-```bash
-cp config.yaml.example config.yaml
-# Edit config.yaml
+**OpenRouter**
 ```
-
-#### Option C: Interactive Wizard
-```bash
-python ingest.py --setup
+Provider: OpenRouter
+Model: anthropic/claude-3-haiku
+API Key: sk-or-...
 ```
 
 ---
 
-## 💻 Usage
+## 🌐 Web Dashboard
 
-### Basic Ingest
-
-```bash
-# Preview changes without writing
-python ingest.py --dry-run
-
-# Process files from inbox/ folder
-python ingest.py
-
-# Force re-process even if already ingested
-python ingest.py --force
-
-# Specify custom input directory
-python ingest.py /path/to/files
-
-# Switch provider temporarily
-python ingest.py --provider anthropic --model claude-3-haiku
-```
-
-### Vault Structure
-
-```
-RatVault/
-├── inbox/              # Drop raw files here
-├── Notes/              # Processed entries (Obsidian vault)
-│   ├── home.md
-│   ├── entry1.md
-│   └── entry2.md
-├── assets/
-│   ├── images/         # Extracted images
-│   └── videos/         # Extracted videos
-├── Templates/          # Obsidian templates
-├── .obsidian/          # Obsidian configuration
-└── dashboard/          # Web dashboard (PWA)
-```
-
-### Entry Format
-
-Each processed entry is Markdown with YAML frontmatter:
-
-```yaml
----
-title: "My Research Note"
-slug: "my-research-note"
-created: "2026-04-25"
-ingested_at: "2026-04-25T14:32:11Z"
-summary: "3-sentence summary auto-generated by LLM"
-tags: [research, ml, notes]
-category: research
-difficulty: intermediate
-key_concepts: [concept1, concept2]
-questions_answered: [question1, question2]
-source_file: "inbox/raw-note.md"
-provider: claude
-model: "claude-3-haiku-20240307"
-cross_refs: ["[[Related Note]]"]
-assets:
-  - {type: image, path: "assets/images/slug/diagram.png"}
-status: active
-type: note
----
-
-# My Research Note
-
-Content here...
-```
-
-### 🌐 Web Dashboard
-
-Run `python ingest.py --serve` and open http://localhost:8055
-
-**Features:**
-- **🔍 Search** — Full-text search over entries and tags
-- **📅 Timeline** — Browse entries by date (newest first)
-- **🖼️ Gallery** — View all extracted images and videos
-- **📊 Analytics** — Charts: entries per day, tags cloud, provider usage
-- **⚙️ Settings** — Change provider, model, and API key
-- **📲 Installable** — Add to home screen as PWA (offline support)
-
----
-
-## 🏗️ How It Works
-
-### The Ingest Pipeline
-
-1. **Discover** — Scan `inbox/` for `.md`, `.txt`, `.pdf` files
-2. **Parse** — Extract title, strip existing frontmatter
-3. **Media Extraction** — Copy images/videos to `assets/`, rewrite links
-   - Local images: `![alt](path)` → copied to `assets/images/{slug}/`
-   - YouTube/Vimeo URLs: wrapped in `> [!video]` callout
-   - Video files: copied to `assets/videos/{slug}/`
-4. **LLM Enrichment** — Call your configured LLM to generate:
-   - Auto-title (if not detected)
-   - Summary (2-3 sentences)
-   - Tags (5-10 kebab-case)
-   - Category (security|development|research|personal|reference|workflow)
-   - Key concepts and questions answered
-5. **Write** — Save as Markdown with YAML frontmatter to `Notes/`
-6. **State Tracking** — Remember processed files to avoid re-processing
-
-All files are skipped if already processed (unless `--force` is used).
-
-### Multi-LLM Abstraction
-
-`providers.py` supports 4 LLM providers with a unified interface:
-
-```python
-response = call_llm(prompt, system_message, config)
-# Returns: LLMResponse(content, model, provider, tokens, duration)
-```
-
-Retry logic: 3 attempts with exponential backoff (1s → 2s → 4s)
-
----
-
-## 📚 Obsidian Integration
-
-The vault root is a valid Obsidian vault. Just open it:
-
-**File** → **Open folder as vault** → Select repo root
-
-### Recommended Plugins
-
-Already configured:
-- **Dataview** — Query entries as tables/lists
-- **Templater** — Template system for new notes
-- **Obsidian Git** — Auto-commit changes
-- **Calendar** — Browse by date
-- **QuickAdd** — Shortcuts for common actions
-
-### Home Dashboard
-
-`Notes/home.md` has Dataview queries showing:
-- Recent entries
-- Tag frequency cloud
-- Entries by provider
-- Draft entries needing review
-
-### Dataview Examples
-
-List all entries from Claude:
-```dataview
-TABLE summary, tags
-FROM "Notes"
-WHERE provider = "anthropic"
-SORT ingested_at DESC
-```
-
-Find draft entries:
-```dataview
-LIST
-FROM "Notes"
-WHERE status = "draft"
-SORT created DESC
-```
+**Chat** — Query your vault with your configured LLM  
+**Vault** — Browse all documents in your knowledge base  
+**Config** — Change provider, model, and API key  
 
 ---
 
 ## 🔒 API Key Safety
 
-- API keys are stored in `.env` or `config.yaml`
-- Both files are in `.gitignore` — they won't commit to git
-- The web dashboard (`serve.py`) masks API key inputs
-- Local Ollama doesn't require an API key
+- API keys are stored securely on your machine
+- Local Ollama requires no API key
+- Keys are never sent to third parties (only to the configured LLM provider)
 
 ---
 
-## ❓ Troubleshooting
+## 🛠️ Development
 
-**Q: Ingest hangs or is slow**  
-A: Check that your LLM provider is running. For Ollama: `ollama serve`. For OpenAI/Claude: check your internet connection.
+This project is in active development. Features, UI, and APIs may change.
 
-**Q: "No files found in inbox"**  
-A: Make sure `.md`, `.txt`, or `.pdf` files exist in the `inbox/` folder. Files are case-sensitive.
+### Current Limitations
 
-**Q: Images don't show in Obsidian**  
-A: Make sure relative paths are correct. Images should be in `assets/images/{slug}/`. Check `> [!video]` callouts.
+- Documents must be in `Notes/` folder
+- No automatic document ingestion pipeline yet (manual file addition)
+- Web UI is minimal (intentionally)
+- Limited to markdown format
 
-**Q: Web dashboard won't start**  
-A: Make sure fastapi and uvicorn are installed: `pip install fastapi uvicorn`. Port 8055 might be in use; check with `lsof -i :8055`.
+### Planned
 
----
-
-## 🤝 Contributing
-
-PRs welcome! Areas for contribution:
-- Support for more file formats (docx, odt, etc.)
-- Additional LLM providers
-- Enhanced media handling
-- Dashboard improvements
-- Documentation
-
----
-
-## 📜 Credits
-
-🙏 **Andrej Karpathy** for the "recipes" concept that inspired this entire system. His insights about structured, reproducible workflows shaped RatVault's design.
-
----
-
-## 📄 License
-
-MIT
-
----
-
-## ❔ FAQ
-
-**Can I use this without an API key?**  
-Yes! Use Ollama (local LLM). Download from [ollama.ai](https://ollama.ai).
-
-**Can I import existing notes?**  
-Yes. Drop them in `inbox/` and run `python ingest.py`.
-
-**Can I switch LLM providers?**  
-Yes, anytime. Just change `.env` or `config.yaml` and re-run `ingest.py --force`.
-
-**Is the vault data portable?**  
-Yes. The vault is just Markdown files. Open in any text editor, move to another Obsidian vault, or use elsewhere.
-
-**Can I use this for production?**  
-RatVault is designed for personal knowledge management. For production use, consider self-hosting a backend or using an external service.
+- Automatic document structuring/enrichment with LLMs
+- Obsidian vault integration
+- Advanced search and filtering
+- Document templates
+- Multi-vault support
 
 ---
 
 ## 🚀 Getting Help
 
-- Check the `Notes/home.md` dashboard for examples
-- Review `config.yaml.example` for all configuration options
-- Run `python ingest.py --help` for all CLI flags
+- Check the `Notes/` folder for example documents
+- Run `python serve.py --help` for server options
 - Open an issue on GitHub
 
 ---
 
+## 📜 License
+
+MIT
+
+---
+
 Made with 🖤 by [labrat](https://ratbyte.dev)  
-Inspired by Andrej Karpathy's recipes for training neural networks.
+*A simple tool for managing knowledge with language models.*

@@ -621,40 +621,6 @@
                 </div>
             </div>
 
-            <!-- Search View -->
-            <div class="view" id="search-view">
-                <input type="text" id="search-input" placeholder="search vault..." />
-                <div class="search-results" id="search-results"></div>
-            </div>
-
-            <!-- Analytics View -->
-            <div class="view" id="analytics-view">
-                <div class="stat-block">
-                    <div class="stat-label">Total Entries</div>
-                    <div class="stat-value" id="stat-entries-big">0</div>
-                </div>
-                <div id="analytics-content"></div>
-            </div>
-
-            <!-- Document Creation View -->
-            <div class="view" id="newdoc-view">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; height: 100%; overflow: hidden;">
-                    <!-- Editor -->
-                    <div style="display: flex; flex-direction: column; gap: 4px; overflow: hidden;">
-                        <div style="font-size: 11px; color: var(--dim); text-transform: uppercase;">Document Title</div>
-                        <input type="text" id="doc-title" placeholder="untitled document" style="padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--fg); font-family: var(--mono); margin-bottom: 8px;">
-                        <div style="font-size: 11px; color: var(--dim); text-transform: uppercase;">Markdown</div>
-                        <textarea id="doc-content" placeholder="// Write markdown here...&#10;&#10;## Section&#10;&#10;Your content..." style="flex: 1; padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--fg); font-family: var(--mono); font-size: 14px; resize: none; overflow-y: auto;"></textarea>
-                        <button id="doc-save" style="padding: 8px; background: rgba(0,255,65,0.15); border: 1px solid rgba(0,255,65,0.3); color: var(--fg); cursor: pointer; font-family: var(--mono);">[ SAVE ]</button>
-                    </div>
-                    <!-- Preview -->
-                    <div style="display: flex; flex-direction: column; gap: 4px; overflow: hidden;">
-                        <div style="font-size: 11px; color: var(--dim); text-transform: uppercase;">Preview</div>
-                        <div id="doc-preview" style="flex: 1; padding: 8px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); overflow-y: auto; line-height: 1.6;"></div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Vault/Documents View -->
             <div class="view" id="vault-view">
                 <div style="display: flex; flex-direction: column; gap: 8px; height: 100%; overflow: hidden;">
@@ -669,9 +635,9 @@
 
         <!-- Sidebar -->
         <div class="sidebar">
-            <div class="sidebar-card" style="padding:0; overflow:hidden; border-bottom:1px solid var(--border); aspect-ratio: 1/1; flex-shrink: 0; position: relative;">
+            <div class="sidebar-card" style="padding:0; overflow:hidden; border-bottom:1px solid var(--border); aspect-ratio: 1/1; flex-shrink: 0;">
                 <!-- Profile media container -->
-                <div id="profile-media" style="width:100%; height:100%; position: relative;">
+                <div id="profile-media" style="width:100%; height:100%;">
                     <video
                         id="profile-video"
                         autoplay loop muted playsinline
@@ -680,11 +646,12 @@
                         <source src="/assets/labrat-vid.mp4" type="video/mp4">
                     </video>
                 </div>
-                <!-- Upload overlay -->
-                <div style="position: absolute; bottom: 8px; left: 8px; right: 8px;">
-                    <label for="profile-upload" style="display: block; padding: 6px 8px; background: rgba(0,0,0,0.7); border: 1px solid var(--dim2); color: var(--dim); text-align: center; cursor: pointer; font-size: 12px; text-transform: uppercase;">↓ Upload</label>
-                    <input type="file" id="profile-upload" accept="image/*,video/*,.gif" style="display: none;">
-                </div>
+            </div>
+
+            <!-- Profile Upload Button -->
+            <div class="sidebar-card" style="padding: 8px; border-bottom: 1px solid var(--border); flex-shrink: 0;">
+                <label for="profile-upload" style="display: block; padding: 6px 8px; background: rgba(0,255,65,0.15); border: 1px solid rgba(0,255,65,0.3); color: var(--fg); text-align: center; cursor: pointer; font-size: 11px; text-transform: uppercase; font-family: var(--mono);">[ Change Media ]</label>
+                <input type="file" id="profile-upload" accept="image/*,video/*,.gif" style="display: none;">
             </div>
 
             <div class="sidebar-card">
@@ -718,10 +685,7 @@
             <!-- Navigation at bottom -->
             <div class="nav-bar" style="flex-direction: column; border-top: 1px solid var(--border); margin-top: auto;">
                 <button class="nav-btn active" data-view="chat" style="border-right: none; border-bottom: 1px solid var(--border);">Chat</button>
-                <button class="nav-btn" data-view="search" style="border-right: none; border-bottom: 1px solid var(--border);">Search</button>
-                <button class="nav-btn" data-view="newdoc" style="border-right: none; border-bottom: 1px solid var(--border);">New Doc</button>
                 <button class="nav-btn" data-view="vault" style="border-right: none; border-bottom: 1px solid var(--border);">Vault</button>
-                <button class="nav-btn" data-view="analytics" style="border-right: none; border-bottom: 1px solid var(--border);">Stats</button>
                 <button class="nav-btn" id="settings-btn" style="border-right: none;">Config</button>
             </div>
         </div>
@@ -798,15 +762,10 @@
                     if (e.key === 'Enter') this.sendMessage();
                 });
 
-                // Search
-                document.getElementById('search-input').addEventListener('input', (e) => this.search(e.target.value));
 
                 // Settings
                 document.getElementById('close-settings').addEventListener('click', () => this.closeSettings());
                 document.getElementById('save-settings').addEventListener('click', () => this.saveSettings());
-
-                // Document Creation
-                this.initDocumentCreation();
 
                 // Profile Upload
                 this.initProfileUpload();
@@ -841,7 +800,6 @@
                 document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
                 document.querySelector(`[data-view="${viewName}"]`).classList.add('active');
 
-                if (viewName === 'analytics') this.loadAnalytics();
                 if (viewName === 'vault') this.loadVaultDocuments();
             }
 
