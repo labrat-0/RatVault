@@ -66,6 +66,11 @@ def main():
         help="Skip embedding step",
     )
     parser.add_argument(
+        "--lint",
+        action="store_true",
+        help="Check wiki health (orphaned pages, broken refs, etc.)",
+    )
+    parser.add_argument(
         "input_path",
         nargs="?",
         help="File or directory to ingest (default: inbox/)",
@@ -75,6 +80,12 @@ def main():
 
     if args.setup:
         setup_wizard()
+        return
+    
+    if args.lint:
+        from pipeline.lint import lint_wiki, print_lint_report
+        issues = lint_wiki()
+        print_lint_report(issues)
         return
 
     if args.serve:
