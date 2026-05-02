@@ -80,7 +80,7 @@
 
         .meta {
             color: var(--dim);
-            font-size: 11px;
+            font-size: 13px;
             letter-spacing: 0.18em;
             text-transform: uppercase;
         }
@@ -138,7 +138,7 @@
             padding: 8px;
             cursor: pointer;
             font-family: var(--mono);
-            font-size: 11px;
+            font-size: 13px;
             letter-spacing: 0.1em;
             text-transform: uppercase;
             transition: background 0.1s;
@@ -182,7 +182,7 @@
             display: flex;
             gap: 8px;
             align-items: flex-start;
-            font-size: 12px;
+            font-size: 14px;
             line-height: 1.4;
         }
 
@@ -252,7 +252,7 @@
             padding: 6px 12px;
             font-family: var(--mono);
             font-weight: 700;
-            font-size: 11px;
+            font-size: 13px;
             cursor: pointer;
             letter-spacing: 0.1em;
             text-transform: uppercase;
@@ -305,14 +305,14 @@
         }
 
         .result-item h4 {
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 700;
             margin-bottom: 4px;
             color: var(--fg);
         }
 
         .result-item p {
-            font-size: 11px;
+            font-size: 13px;
             color: var(--dim);
             line-height: 1.4;
         }
@@ -337,7 +337,7 @@
         }
 
         .card-title {
-            font-size: 11px;
+            font-size: 13px;
             font-weight: 700;
             letter-spacing: 0.1em;
             text-transform: uppercase;
@@ -350,7 +350,7 @@
         .card-row {
             display: flex;
             justify-content: space-between;
-            font-size: 11px;
+            font-size: 13px;
             padding: 4px 0;
             border-bottom: 1px solid var(--dim2);
         }
@@ -369,7 +369,7 @@
         }
 
         .card-text {
-            font-size: 11px;
+            font-size: 13px;
             color: var(--dim);
             line-height: 1.4;
             margin-top: 6px;
@@ -387,7 +387,7 @@
         }
 
         .stat-label {
-            font-size: 11px;
+            font-size: 13px;
             color: var(--dim);
             letter-spacing: 0.1em;
             text-transform: uppercase;
@@ -444,7 +444,7 @@
 
         .setting-group label {
             display: block;
-            font-size: 11px;
+            font-size: 13px;
             font-weight: 700;
             letter-spacing: 0.1em;
             text-transform: uppercase;
@@ -460,7 +460,7 @@
             color: var(--fg);
             padding: 6px;
             font-family: var(--mono);
-            font-size: 11px;
+            font-size: 13px;
         }
 
         .setting-group select:focus,
@@ -489,7 +489,7 @@
             padding: 6px 12px;
             font-family: var(--mono);
             font-weight: 700;
-            font-size: 11px;
+            font-size: 13px;
             letter-spacing: 0.1em;
             text-transform: uppercase;
             cursor: pointer;
@@ -522,7 +522,7 @@
             grid-template-columns: auto auto 1fr auto auto;
             gap: 0;
             height: 28px;
-            font-size: 11px;
+            font-size: 13px;
             letter-spacing: 0.05em;
         }
 
@@ -640,7 +640,7 @@
                             <h1 id="doc-title" style="margin: 0; font-size: 20px; color: var(--fg);">Loading...</h1>
                             <button id="doc-back" style="background: none; border: 1px solid var(--border); color: var(--fg); cursor: pointer; padding: 4px 8px; font-family: var(--mono); font-size: 12px;">← Back</button>
                         </div>
-                        <div style="display: flex; gap: 16px; font-size: 11px; color: var(--dim);">
+                        <div style="display: flex; gap: 16px; font-size: 13px; color: var(--dim);">
                             <span id="doc-created"></span>
                             <span id="doc-tags"></span>
                         </div>
@@ -655,7 +655,7 @@
                     
                     <!-- Document Footer -->
                     <div style="padding: 12px 16px; border-top: 1px solid var(--border); background: rgba(0,0,0,0.3); display: flex; gap: 8px;">
-                        <button id="doc-edit" style="flex: 1; padding: 6px 12px; background: rgba(0,255,65,0.15); border: 1px solid rgba(0,255,65,0.3); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 11px; text-transform: uppercase;">✎ Edit</button>
+                        <button id="doc-edit" style="flex: 1; padding: 6px 12px; background: rgba(0,255,65,0.15); border: 1px solid rgba(0,255,65,0.3); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 13px; text-transform: uppercase;">✎ Edit</button>
                     </div>
                 </div>
             </div>
@@ -666,7 +666,8 @@
 
         <!-- Sidebar -->
         <div class="sidebar">
-            <div class="sidebar-card" style="padding:0; overflow:hidden; border-bottom:1px solid var(--border); height: 100px; flex-shrink: 0;">
+            <!-- Profile Media (Optional) -->
+            <div class="sidebar-card" style="padding:0; overflow:hidden; border-bottom:1px solid var(--border); height: 80px; flex-shrink: 0; display: none;" id="profile-container">
                 <!-- Profile media container -->
                 <div id="profile-media" style="width:100%; height:100%;">
                     <video
@@ -680,8 +681,11 @@
             </div>
 
             <!-- Profile Upload Button -->
-            <div class="sidebar-card" style="padding: 2px; border-bottom: 1px solid var(--border); flex-shrink: 0;">
-                <label for="profile-upload" style="display: block; padding: 4px 6px; background: none; border: 1px solid var(--border); color: var(--fg); text-align: center; cursor: pointer; font-size: 14px; line-height: 1; height: 24px; display: flex; align-items: center; justify-content: center;">📷</label>
+            <div class="sidebar-card" style="padding: 4px; border-bottom: 1px solid var(--border); flex-shrink: 0;">
+                <div style="display: flex; gap: 4px; align-items: center;">
+                    <label for="profile-upload" style="flex: 1; display: block; padding: 6px; background: none; border: 1px solid var(--border); color: var(--fg); text-align: center; cursor: pointer; font-size: 13px; border-radius: 2px;" title="Upload media">📷 Media</label>
+                    <button id="toggle-profile" style="padding: 6px 8px; background: none; border: 1px solid var(--border); color: var(--dim); cursor: pointer; font-size: 11px;" title="Toggle media display">≡</button>
+                </div>
                 <input type="file" id="profile-upload" accept="image/*,video/*,.gif" style="display: none;">
             </div>
 
@@ -742,7 +746,7 @@
                 <label>Model</label>
                 <div style="display: flex; gap: 4px;">
                     <select id="model-select" style="flex: 1;"></select>
-                    <button id="fetch-models-btn" style="padding: 6px 12px; background: rgba(0,255,65,0.15); border: 1px solid rgba(0,255,65,0.3); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 11px; white-space: nowrap; display: none;">Fetch</button>
+                    <button id="fetch-models-btn" style="padding: 6px 12px; background: rgba(0,255,65,0.15); border: 1px solid rgba(0,255,65,0.3); color: var(--fg); cursor: pointer; font-family: var(--mono); font-size: 13px; white-space: nowrap; display: none;">Fetch</button>
                 </div>
             </div>
 
@@ -1231,6 +1235,15 @@ tags: []
             initProfileUpload() {
                 const uploadInput = document.getElementById('profile-upload');
                 const profileMedia = document.getElementById('profile-media');
+                const toggleBtn = document.getElementById('toggle-profile');
+                const profileContainer = document.getElementById('profile-container');
+
+                // Toggle profile visibility
+                toggleBtn.addEventListener('click', () => {
+                    const isVisible = profileContainer.style.display !== 'none';
+                    profileContainer.style.display = isVisible ? 'none' : 'block';
+                    toggleBtn.textContent = isVisible ? '≡' : '✕';
+                });
 
                 uploadInput.addEventListener('change', async (e) => {
                     const file = e.target.files[0];
