@@ -2,8 +2,11 @@
   <img src="dashboard/logo-256.png" alt="RatVault Logo" width="256" height="256">
   <h1>RatVault 🐀</h1>
   <p><strong>A terminal-first knowledge vault for managing and querying documents with LLMs</strong></p>
-  <p><em>⚠️ Currently in active development. Features and API may change.</em></p>
+  <p><em>⚠️ Currently in active development. Features and API may change.⚠️</em></p>
 </div>
+
+![image](https://github.com/labrat-0/RatVault/blob/main/assets/images/test/rat-vault-intro-site.png)
+---
 
 RatVault is a simple, open-source knowledge management system that lets you store markdown documents and query them using any LLM provider (OpenAI, Anthropic Claude, Ollama local, OpenRouter, etc).
 
