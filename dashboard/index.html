@@ -583,6 +583,8 @@
             }
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
 </head>
 <body>
     <script>
@@ -633,6 +635,25 @@
                 </div>
                 <div id="analytics-content"></div>
             </div>
+
+            <!-- Document Creation View -->
+            <div class="view" id="newdoc-view">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; height: 100%; overflow: hidden;">
+                    <!-- Editor -->
+                    <div style="display: flex; flex-direction: column; gap: 4px; overflow: hidden;">
+                        <div style="font-size: 11px; color: var(--dim); text-transform: uppercase;">Document Title</div>
+                        <input type="text" id="doc-title" placeholder="untitled document" style="padding: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--fg); font-family: var(--mono); margin-bottom: 8px;">
+                        <div style="font-size: 11px; color: var(--dim); text-transform: uppercase;">Markdown</div>
+                        <textarea id="doc-content" placeholder="// Write markdown here...&#10;&#10;## Section&#10;&#10;Your content..." style="flex: 1; padding: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--fg); font-family: var(--mono); font-size: 14px; resize: none; overflow-y: auto;"></textarea>
+                        <button id="doc-save" style="padding: 8px; background: rgba(0,255,65,0.15); border: 1px solid rgba(0,255,65,0.3); color: var(--fg); cursor: pointer; font-family: var(--mono);">[ SAVE ]</button>
+                    </div>
+                    <!-- Preview -->
+                    <div style="display: flex; flex-direction: column; gap: 4px; overflow: hidden;">
+                        <div style="font-size: 11px; color: var(--dim); text-transform: uppercase;">Preview</div>
+                        <div id="doc-preview" style="flex: 1; padding: 8px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); overflow-y: auto; line-height: 1.6;"></div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Sidebar -->
@@ -678,6 +699,7 @@
             <div class="nav-bar" style="flex-direction: column; border-top: 1px solid var(--border); margin-top: auto;">
                 <button class="nav-btn active" data-view="chat" style="border-right: none; border-bottom: 1px solid var(--border);">Chat</button>
                 <button class="nav-btn" data-view="search" style="border-right: none; border-bottom: 1px solid var(--border);">Search</button>
+                <button class="nav-btn" data-view="newdoc" style="border-right: none; border-bottom: 1px solid var(--border);">New Doc</button>
                 <button class="nav-btn" data-view="analytics" style="border-right: none; border-bottom: 1px solid var(--border);">Stats</button>
                 <button class="nav-btn" id="settings-btn" style="border-right: none;">Config</button>
             </div>
@@ -761,6 +783,9 @@
                 // Settings
                 document.getElementById('close-settings').addEventListener('click', () => this.closeSettings());
                 document.getElementById('save-settings').addEventListener('click', () => this.saveSettings());
+
+                // Document Creation
+                this.initDocumentCreation();
 
                 this.loadSettings();
             }
@@ -1006,6 +1031,54 @@
             updateStatusBar(provider, model) {
                 const el = document.getElementById('status-model');
                 if (el) el.textContent = `${provider}:${model}`;
+            }
+
+            initDocumentCreation() {
+                const contentEl = document.getElementById('doc-content');
+                const previewEl = document.getElementById('doc-preview');
+                const saveBtn = document.getElementById('doc-save');
+
+                const updatePreview = () => {
+                    const content = contentEl.value;
+                    try {
+                        const html = window.marked ? window.marked.parse(content) : `<pre>${content}</pre>`;
+                        const clean = window.DOMPurify ? window.DOMPurify.sanitize(html) : html;
+                        previewEl.innerHTML = clean;
+                    } catch (e) {
+                        previewEl.innerHTML = `<pre>${content}</pre>`;
+                    }
+                };
+
+                contentEl.addEventListener('input', updatePreview);
+
+                saveBtn.addEventListener('click', async () => {
+                    const title = document.getElementById('doc-title').value || 'untitled';
+                    const content = contentEl.value;
+
+                    if (!content.trim()) {
+                        alert('Document is empty');
+                        return;
+                    }
+
+                    try {
+                        const res = await fetch('/api/docs', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ title, content }),
+                        });
+
+                        if (res.ok) {
+                            alert('Document saved!');
+                            document.getElementById('doc-title').value = '';
+                            contentEl.value = '';
+                            updatePreview();
+                        }
+                    } catch (e) {
+                        alert('Error saving document: ' + e.message);
+                    }
+                });
+
+                updatePreview();
             }
         }
 
