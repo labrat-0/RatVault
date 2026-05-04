@@ -2474,37 +2474,51 @@ class RatVault {
         const slug = this.currentDoc.slug;
 
         try {
-            // Save to inbox/ for re-ingestion
+            // Save to inbox/ for re-ingestion (LLM will re-enrich on next reindex)
             const r = await fetch('/api/inbox/save-edit', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({title, slug, content}),
             });
-            if (!r.ok) throw new Error('Save failed');
+            if (!r.ok) throw new Error('Save to inbox failed');
 
-            // If existing note, also update Notes/
             if (!this.currentDoc.isNew) {
-                await fetch(`/api/entries/${slug}`, {
+                // Update existing Notes/ entry — server handles slug rename if title changed
+                const pr = await fetch(`/api/entries/${slug}`, {
                     method: 'PUT',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({content}),
+                    body: JSON.stringify({content, title}),
                 });
+                if (!pr.ok) {
+                    const err = await pr.text();
+                    throw new Error(`Update failed: ${err.slice(0,120)}`);
+                }
+                const result = await pr.json();
+                if (result.slug && result.slug !== slug) {
+                    this.currentDoc.slug = result.slug;
+                }
+                this.currentDoc.title = title;
             } else {
-                // Create new entry in Notes/ as well
-                await fetch('/api/entries', {
+                const cr = await fetch('/api/entries', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({title, slug, content}),
                 });
+                if (!cr.ok) {
+                    const err = await cr.text();
+                    throw new Error(`Create failed: ${err.slice(0,120)}`);
+                }
                 this.currentDoc.isNew = false;
             }
 
-            this.toast('✓ Saved to inbox + Notes (run reindex to integrate)');
+            this.toast('✓ Saved (Notes/ updated, inbox/ queued for reindex)');
             this.loadStats();
+            this.loadNotesDocs();
             this.loadInboxDocs();
-            this.switchTab('inbox');
+            this.switchVaultTab('inbox');
         } catch (e) {
             this.toast(`✗ ${e.message}`);
+            console.error('saveDoc error:', e);
         }
     }
 

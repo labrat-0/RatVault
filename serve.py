@@ -41,6 +41,7 @@ class DocumentRequest(BaseModel):
 
 class DocumentUpdateRequest(BaseModel):
     content: str
+    title: Optional[str] = None
 
 
 def load_vault_entries() -> list[dict]:
@@ -656,7 +657,7 @@ tags: []
 
 @app.put("/api/entries/{slug}")
 async def update_document(slug: str, req: DocumentUpdateRequest):
-    """Update an existing document."""
+    """Update existing document. Title change triggers slug rename + file move."""
     try:
         notes_dir = Path("Notes")
         filepath = notes_dir / f"{slug}.md"
@@ -664,29 +665,32 @@ async def update_document(slug: str, req: DocumentUpdateRequest):
         if not filepath.exists():
             raise HTTPException(status_code=404, detail="Document not found")
 
-        # Parse existing frontmatter
         existing = filepath.read_text(encoding="utf-8")
         entry = parse_frontmatter(existing)
-
         if not entry:
             raise HTTPException(status_code=400, detail="Invalid document format")
 
-        # Rebuild with updated content
-        frontmatter = f"""---
-title: "{entry.get('title', 'Untitled')}"
-slug: "{entry.get('slug', slug)}"
-created: "{entry.get('created', '')}"
-tags: {entry.get('tags', [])}
-"""
-        if 'related' in entry:
-            frontmatter += f'related: {entry["related"]}\n'
-        frontmatter += f"---\n\n{req.content}"
+        new_title = (req.title or entry.get("title", "Untitled")).strip()
+        new_slug = re.sub(r"[^a-z0-9]+", "-", new_title.lower()).strip("-") or slug
+        new_path = notes_dir / f"{new_slug}.md"
 
-        filepath.write_text(frontmatter, encoding="utf-8")
+        if new_slug != slug and new_path.exists():
+            raise HTTPException(status_code=409, detail=f"Slug '{new_slug}' already exists")
+
+        entry["title"] = new_title
+        entry["slug"] = new_slug
+        # Preserve frontmatter — dump full dict, not subset
+        frontmatter_yaml = yaml.dump(entry, default_flow_style=False, allow_unicode=True, sort_keys=True)
+        markdown = f"---\n{frontmatter_yaml}---\n\n{req.content}"
+
+        new_path.write_text(markdown, encoding="utf-8")
+        if new_slug != slug:
+            filepath.unlink()
 
         return {
             "success": True,
-            "slug": slug,
+            "slug": new_slug,
+            "renamed": new_slug != slug,
             "updated_at": datetime.now().isoformat()
         }
     except HTTPException:
