@@ -1237,6 +1237,13 @@
             color: var(--bg);
         }
 
+        .btn.danger {
+            background: var(--danger, #ff4444);
+            color: #fff;
+            border-color: var(--danger, #ff4444);
+        }
+        .btn.danger:hover { opacity: 0.85; color: #fff; }
+
         .status-msg {
             font-size: 11px;
             color: var(--dim);
@@ -1624,7 +1631,7 @@ Save → goes to inbox/ for re-ingestion."></textarea>
     <div class="stat-cell invert">&nbsp;RAT VAULT&nbsp;</div>
     <div class="stat-cell">notes <span style="color:var(--dim)" id="ft-notes">0</span></div>
     <div class="stat-cell">inbox <span style="color:var(--dim)" id="ft-inbox">0</span></div>
-    <div class="stat-cell fill">web-dash · local knowledge system</div>
+    <div class="stat-cell fill">web-dash · local RAG</div>
     <div class="stat-cell" title="Approximate context use: chat-history chars / 4 ÷ model context window. Clear chat to reset.">
         ctx
         <span style="color:var(--dim)" id="ft-tokens">0/8k</span>
@@ -1713,6 +1720,21 @@ Save → goes to inbox/ for re-ingestion."></textarea>
         </div>
     </div>
     <div class="viewer-body" id="viewer-body"></div>
+</div>
+
+<!-- Themed dialog (replaces native confirm/prompt/alert) -->
+<div class="modal-overlay" id="theme-dialog">
+    <div class="modal" style="max-width:440px;">
+        <h2 id="td-title">// Confirm</h2>
+        <div id="td-message" style="font-size:12px;color:var(--fg);line-height:1.55;white-space:pre-wrap;margin-bottom:12px;"></div>
+        <div class="field-group" id="td-input-wrap" style="display:none;">
+            <input type="text" id="td-input" autocomplete="off">
+        </div>
+        <div class="modal-actions">
+            <button class="btn" id="td-cancel">Cancel</button>
+            <button class="btn primary" id="td-ok">OK</button>
+        </div>
+    </div>
 </div>
 
 <div id="toast"></div>
@@ -2045,8 +2067,8 @@ class RatVault {
         }
     }
 
-    clearChat() {
-        if (!confirm('Clear the chat window? (Saved attachments stay in inbox.)')) return;
+    async clearChat() {
+        if (!await this.confirmDlg('Clear the chat window?\n\nSaved attachments stay in inbox.', {title: 'Clear Chat', danger: true, okText: 'Clear'})) return;
         const wrap = document.getElementById('chat-messages');
         wrap.innerHTML = '';
         this.messages = [];
@@ -2365,7 +2387,7 @@ class RatVault {
     }
 
     async deleteInboxFile(name) {
-        if (!confirm(`Delete ${name}?`)) return;
+        if (!await this.confirmDlg(`Delete ${name}?`, {title: 'Delete File', danger: true, okText: 'Delete'})) return;
         try {
             await fetch(`/api/inbox/${encodeURIComponent(name)}`, {method: 'DELETE'});
             this.toast(`✓ Deleted ${name}`);
@@ -2404,7 +2426,7 @@ class RatVault {
         });
     }
 
-    insertMd(type) {
+    async insertMd(type) {
         if (this.currentMode === 'preview') this.setEditorMode('split');
         const ed = document.getElementById('doc-editor');
         const s = ed.selectionStart, e = ed.selectionEnd;
@@ -2418,17 +2440,20 @@ class RatVault {
             case 'h2': ins = `## ${sel}`; break;
             case 'h3': ins = `### ${sel}`; break;
             case 'link': {
-                const url = prompt('URL:');
+                const url = await this.promptDlg('URL:', 'https://', {title: 'Insert Link'});
+                if (url === null) return;
                 ins = `[${sel}](${url || 'https://'})`;
                 break;
             }
             case 'image': {
-                const url = prompt('Image URL or path:');
+                const url = await this.promptDlg('Image URL or path:', '/assets/image.jpg', {title: 'Insert Image'});
+                if (url === null) return;
                 ins = `![${sel}](${url || '/assets/image.jpg'})`;
                 break;
             }
             case 'video': {
-                const url = prompt('Video URL or path:');
+                const url = await this.promptDlg('Video URL or path:', '/assets/video.mp4', {title: 'Insert Video'});
+                if (url === null) return;
                 ins = `<video controls style="max-width:100%"><source src="${url || '/assets/video.mp4'}"></video>`;
                 break;
             }
@@ -2442,8 +2467,8 @@ class RatVault {
         ed.dispatchEvent(new Event('input'));
     }
 
-    newDoc() {
-        const title = prompt('Document title:');
+    async newDoc() {
+        const title = await this.promptDlg('Document title:', '', {title: 'New Document', okText: 'Create'});
         if (!title) return;
         const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
         this.currentDoc = {slug, title, isNew: true};
@@ -2836,6 +2861,68 @@ class RatVault {
         document.getElementById('ft-tokenpct').textContent = pct + '%';
     }
 
+    // ==================== THEMED DIALOGS ====================
+    _td(opts) {
+        // Returns Promise<string|boolean|null>
+        // opts: {title, message, type:'confirm'|'prompt'|'alert', defaultValue, okText, cancelText, danger}
+        return new Promise(resolve => {
+            const overlay = document.getElementById('theme-dialog');
+            const titleEl = document.getElementById('td-title');
+            const msgEl = document.getElementById('td-message');
+            const inputWrap = document.getElementById('td-input-wrap');
+            const input = document.getElementById('td-input');
+            const okBtn = document.getElementById('td-ok');
+            const cancelBtn = document.getElementById('td-cancel');
+
+            titleEl.textContent = `// ${opts.title || 'Confirm'}`;
+            msgEl.textContent = opts.message || '';
+            okBtn.textContent = opts.okText || 'OK';
+            cancelBtn.textContent = opts.cancelText || 'Cancel';
+            cancelBtn.style.display = opts.type === 'alert' ? 'none' : '';
+            okBtn.classList.toggle('danger', !!opts.danger);
+
+            if (opts.type === 'prompt') {
+                inputWrap.style.display = '';
+                input.value = opts.defaultValue || '';
+                setTimeout(() => input.focus(), 50);
+            } else {
+                inputWrap.style.display = 'none';
+            }
+
+            const close = result => {
+                overlay.classList.remove('active');
+                okBtn.onclick = null;
+                cancelBtn.onclick = null;
+                input.onkeydown = null;
+                document.removeEventListener('keydown', escHandler);
+                resolve(result);
+            };
+            const escHandler = e => {
+                if (e.key === 'Escape') close(opts.type === 'prompt' ? null : false);
+                if (e.key === 'Enter' && opts.type !== 'prompt') close(true);
+            };
+
+            okBtn.onclick = () => close(opts.type === 'prompt' ? input.value : true);
+            cancelBtn.onclick = () => close(opts.type === 'prompt' ? null : false);
+            input.onkeydown = e => {
+                if (e.key === 'Enter') { e.preventDefault(); close(input.value); }
+                if (e.key === 'Escape') { e.preventDefault(); close(null); }
+            };
+            document.addEventListener('keydown', escHandler);
+
+            overlay.classList.add('active');
+        });
+    }
+    confirmDlg(message, opts = {}) {
+        return this._td({type: 'confirm', message, title: opts.title || 'Confirm', danger: opts.danger, okText: opts.okText, cancelText: opts.cancelText});
+    }
+    promptDlg(message, defaultValue = '', opts = {}) {
+        return this._td({type: 'prompt', message, title: opts.title || 'Input', defaultValue, okText: opts.okText});
+    }
+    alertDlg(message, opts = {}) {
+        return this._td({type: 'alert', message, title: opts.title || 'Notice'});
+    }
+
     // ==================== TOAST ====================
     toast(msg) {
         const t = document.getElementById('toast');
@@ -2940,15 +3027,15 @@ class RatVault {
         });
     }
 
-    resetKeys() {
-        const ok = confirm(
-            '⚠ Reset all encrypted API keys?\n\n' +
+    async resetKeys() {
+        const ok = await this.confirmDlg(
+            'Reset all encrypted API keys?\n\n' +
             'This will permanently delete:\n' +
             '  • All saved API keys for OpenAI, Anthropic, OpenRouter\n' +
             '  • Master password association\n\n' +
             'Use this if you forgot your master password.\n' +
-            'You will need to re-enter API keys after reset.\n\n' +
-            'Continue?'
+            'You will need to re-enter API keys after reset.',
+            {title: '⚠ Reset Keys', danger: true, okText: 'Reset'}
         );
         if (!ok) return;
 
