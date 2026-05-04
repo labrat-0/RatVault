@@ -1,7 +1,5 @@
-const CACHE_NAME = 'ratvault-v1';
-const urlsToCache = [
-  '/',
-  '/index.html',
+const CACHE_NAME = 'ratvault-v3';
+const STATIC_ASSETS = [
   '/manifest.json',
   '/favicon.ico',
   '/icon-192.png',
@@ -11,7 +9,7 @@ const urlsToCache = [
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(urlsToCache))
+      .then(cache => cache.addAll(STATIC_ASSETS))
       .then(() => self.skipWaiting())
   );
 });
@@ -30,23 +28,44 @@ self.addEventListener('activate', event => {
   );
 });
 
+// Network-first for HTML/JS/CSS so updates always show.
+// Cache-first for static assets (icons, manifest).
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
-  if (event.request.url.includes('/api/')) {
+  const url = event.request.url;
+
+  // API: pass through, no cache
+  if (url.includes('/api/')) {
     event.respondWith(
-      fetch(event.request)
-        .catch(() => {
-          return new Response(JSON.stringify({ error: 'offline' }), {
-            headers: { 'Content-Type': 'application/json' }
-          });
+      fetch(event.request).catch(() =>
+        new Response(JSON.stringify({ error: 'offline' }), {
+          headers: { 'Content-Type': 'application/json' }
         })
+      )
     );
-  } else {
-    event.respondWith(
-      caches.match(event.request)
-        .then(response => response || fetch(event.request))
-        .catch(() => caches.match('/index.html'))
-    );
+    return;
   }
+
+  // Static icons/manifest: cache-first
+  if (STATIC_ASSETS.some(p => url.endsWith(p))) {
+    event.respondWith(
+      caches.match(event.request).then(r => r || fetch(event.request))
+    );
+    return;
+  }
+
+  // Everything else (HTML, dashboard JS/CSS, dynamic): network-first
+  event.respondWith(
+    fetch(event.request)
+      .then(response => {
+        // Update cache opportunistically
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request).then(r => r || caches.match('/')))
+  );
 });
