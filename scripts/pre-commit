@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Block commits containing API key patterns
+
+PATTERNS=(
+    'sk-proj-[A-Za-z0-9_-]{20,}'
+    'sk-or-v1-[A-Za-z0-9]{40,}'
+    'sk-ant-[A-Za-z0-9_-]{20,}'
+    'sk-[A-Za-z0-9]{48}'
+    'AIza[A-Za-z0-9_-]{35}'
+    'AKIA[A-Z0-9]{16}'
+    'openai_api_key\s*[:=]\s*sk-'
+    'anthropic_api_key\s*[:=]\s*sk-ant-'
+    'openrouter_api_key\s*[:=]\s*sk-or-'
+)
+
+STAGED=$(git diff --cached --name-only)
+FOUND=0
+
+for file in $STAGED; do
+    [ -f "$file" ] || continue
+    for pattern in "${PATTERNS[@]}"; do
+        if git show ":$file" 2>/dev/null | grep -qE "$pattern"; then
+            echo "ERROR: API key detected in staged file: $file"
+            echo "  Pattern matched: $pattern"
+            FOUND=1
+        fi
+    done
+done
+
+if [ $FOUND -ne 0 ]; then
+    echo ""
+    echo "Commit blocked. Remove API keys before committing."
+    echo "Use config.yaml (gitignored) or environment variables instead."
+    exit 1
+fi
+
+exit 0

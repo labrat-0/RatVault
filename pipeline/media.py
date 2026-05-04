@@ -96,9 +96,15 @@ def _copy_local_image(
     entry_slug: str,
 ) -> tuple[Optional[str], Optional[AssetRecord]]:
     """Copy a local image file to assets."""
-    source_dir = source_path.parent
+    source_dir = source_path.parent.resolve()
 
-    image_full_path = source_dir / image_path
+    try:
+        image_full_path = (source_dir / image_path).resolve()
+        image_full_path.relative_to(source_dir)  # raises ValueError if outside source_dir
+    except ValueError:
+        print(f"Warning: Image path escapes source directory: {image_path}", file=sys.stderr)
+        return None, None
+
     if not image_full_path.exists():
         print(f"Warning: Image not found: {image_path}", file=sys.stderr)
         return None, None

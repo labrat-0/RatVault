@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """FastAPI server for RatVault web dashboard."""
 
-import json
 import re
 from datetime import datetime
 from pathlib import Path
@@ -10,8 +9,6 @@ from typing import Optional
 import yaml
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
-from fastapi.responses import FileResponse as FastAPIFileResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -33,6 +30,7 @@ class ChatRequest(BaseModel):
     provider: Optional[str] = None
     model: Optional[str] = None
     api_key: Optional[str] = None
+    images: list = []  # list of {name, dataUrl} dicts (base64 data: URLs)
 
 
 class DocumentRequest(BaseModel):
@@ -43,12 +41,6 @@ class DocumentRequest(BaseModel):
 
 class DocumentUpdateRequest(BaseModel):
     content: str
-
-
-@app.on_event("startup")
-async def startup():
-    """Initialize dashboard on startup."""
-    pass
 
 
 def load_vault_entries() -> list[dict]:
@@ -187,13 +179,16 @@ async def get_gallery():
     assets_dir = Path("assets")
     media = {"images": [], "videos": []}
 
+    cwd = Path.cwd().resolve()
     if (assets_dir / "images").exists():
-        for img_file in (assets_dir / "images").rglob("*.png") + (assets_dir / "images").rglob("*.jpg") + (assets_dir / "images").rglob("*.jpeg") + (assets_dir / "images").rglob("*.gif"):
-            media["images"].append(str(img_file.relative_to(Path.cwd())))
+        images_dir = assets_dir / "images"
+        for img_file in [*images_dir.rglob("*.png"), *images_dir.rglob("*.jpg"), *images_dir.rglob("*.jpeg"), *images_dir.rglob("*.gif")]:
+            media["images"].append(str(img_file.resolve().relative_to(cwd)))
 
     if (assets_dir / "videos").exists():
-        for vid_file in (assets_dir / "videos").rglob("*.mp4") + (assets_dir / "videos").rglob("*.webm"):
-            media["videos"].append(str(vid_file.relative_to(Path.cwd())))
+        videos_dir = assets_dir / "videos"
+        for vid_file in [*videos_dir.rglob("*.mp4"), *videos_dir.rglob("*.webm")]:
+            media["videos"].append(str(vid_file.resolve().relative_to(cwd)))
 
     return media
 
@@ -304,7 +299,7 @@ async def reindex():
     try:
         result = subprocess.run(
             ["python", "ingest.py"],
-            capture_output=True, text=True, cwd=".", timeout=300
+            capture_output=True, text=True, cwd=Path(__file__).parent, timeout=300
         )
         return {
             "status": "ok" if result.returncode == 0 else "error",
@@ -364,7 +359,7 @@ async def serve_inbox_file(filename: str):
     if not target.exists() or not target.is_file():
         raise HTTPException(status_code=404, detail="Not found")
     # Inline disposition so PDFs render in browser, not download
-    return FastAPIFileResponse(
+    return FileResponse(
         target,
         headers={"Content-Disposition": f'inline; filename="{safe}"'},
     )
@@ -435,13 +430,12 @@ async def health():
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
-    """Handle chat queries against the knowledge vault with RAG"""
+    """Handle chat queries against the knowledge vault with RAG.
+    Supports image attachments for vision-capable models (OpenAI gpt-4o*, Claude)."""
     try:
         from pipeline.providers import call_llm
         from pipeline.config import load_config
-        from pipeline.models import ProviderConfig
 
-        # Search vault for relevant entries
         entries = load_vault_entries()
         index = build_search_index(entries)
         tokens = re.findall(r"\w+", request.message.lower())
@@ -453,41 +447,67 @@ async def chat(request: ChatRequest):
 
         relevant_entries = [e for e in entries if e.get("slug") in matching_slugs][:3]
 
-        # Build context from relevant entries
         context = ""
         if relevant_entries:
             context = "\n\n## Relevant vault entries:\n"
             for entry in relevant_entries:
                 context += f"- **{entry.get('title', 'Untitled')}**: {entry.get('summary', 'No summary')}\n"
 
-        system_prompt = f"""You are a helpful assistant for RatVault, a developer knowledge base.
-Help users learn about programming languages, tools, development environments, AI/LLM, and technology.
-Keep answers concise and practical. When relevant, suggest related vault topics.
+        system_prompt = f"""You are a helpful assistant for RatVault, a knowledge vault.
+Answer questions based on the user's notes. Keep responses concise and practical.
 
 {context}
 
-Use the vault entries above as context when answering. If the user asks about something in the vault, reference those entries."""
+Use the vault entries above as context. Reference them when relevant."""
 
         vault_config = load_config()
-        # Apply per-request overrides onto vault_config, then use get_provider_config()
         if request.provider:
             vault_config.provider = request.provider
         if request.model:
             vault_config.model = request.model
         if request.api_key:
-            if vault_config.provider == "openai":
-                vault_config.openai_api_key = request.api_key
-            elif vault_config.provider == "anthropic":
-                vault_config.anthropic_api_key = request.api_key
-            elif vault_config.provider == "openrouter":
-                vault_config.openrouter_api_key = request.api_key
+            key_map = {"openai": "openai_api_key", "anthropic": "anthropic_api_key", "openrouter": "openrouter_api_key"}
+            provider_key = key_map.get(vault_config.provider)
+            if provider_key:
+                setattr(vault_config, provider_key, request.api_key)
+
+        # Extract images referenced in matching vault entries
+        context_images = []
+        import re as _re
+        import base64 as _base64
+        for entry in relevant_entries:
+            body = entry.get("body", "")
+            for img_match in _re.finditer(r'!\[[^\]]*\]\((assets/images/[^)]+)\)', body):
+                img_path = Path(img_match.group(1))
+                if img_path.is_file():
+                    mime = "image/jpeg" if img_path.suffix.lower() in ('.jpg', '.jpeg') else f"image/{img_path.suffix.lower().lstrip('.')}"
+                    b64 = _base64.b64encode(img_path.read_bytes()).decode()
+                    context_images.append({"name": img_path.name, "dataUrl": f"data:{mime};base64,{b64}"})
+
+        # Vision path: if images supplied AND provider supports vision, use vision API directly.
+        all_images = request.images + context_images
+        if all_images:
+            reply = _call_vision_llm(
+                request.message, system_prompt, vault_config,
+                all_images, request.history
+            )
+            if reply is not None:
+                return {
+                    "reply": reply,
+                    "model": vault_config.model,
+                    "provider": vault_config.provider,
+                    "sources": [e.get("title") for e in relevant_entries],
+                    "vision": True,
+                }
+            # Fallback: provider doesn't support vision — note in prompt
+            if request.images:
+                request.message += f"\n\n[Note: {len(request.images)} image(s) were attached but the current model does not support vision. Images saved to inbox for indexing.]"
 
         provider_config = vault_config.get_provider_config()
-
         response = call_llm(
             prompt=request.message,
             system=system_prompt,
-            config=provider_config
+            config=provider_config,
         )
 
         return {
@@ -498,6 +518,104 @@ Use the vault entries above as context when answering. If the user asks about so
         }
     except Exception as e:
         return {"error": str(e), "reply": None}
+
+
+def _call_vision_llm(message: str, system: str, vault_config, images: list, history: list):
+    """Call a vision-capable LLM with images. Returns reply text, or None if unsupported."""
+    import httpx
+
+    provider = vault_config.provider
+    model = vault_config.model
+
+    # OpenAI gpt-4o and Anthropic Claude 3+ support vision.
+    if provider == "openai" and ("4o" in model or "gpt-4-vision" in model or "gpt-4-turbo" in model):
+        api_key = vault_config.openai_api_key
+        content_blocks = [{"type": "text", "text": message}]
+        for img in images:
+            url = img.get("dataUrl") or img.get("url")
+            if url:
+                content_blocks.append({
+                    "type": "image_url",
+                    "image_url": {"url": url}
+                })
+        msgs = [{"role": "system", "content": system}]
+        for h in (history or [])[-10:]:
+            if h.get("role"):
+                msgs.append({"role": h["role"], "content": h.get("content", "")})
+        msgs.append({"role": "user", "content": content_blocks})
+
+        with httpx.Client(timeout=120) as c:
+            r = c.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json={"model": model, "messages": msgs, "max_tokens": 2000},
+            )
+            r.raise_for_status()
+            return r.json()["choices"][0]["message"]["content"]
+
+    if provider == "anthropic" and ("claude" in model.lower()):
+        api_key = vault_config.anthropic_api_key
+        content_blocks = []
+        for img in images:
+            url = img.get("dataUrl", "")
+            # Expect data:image/{type};base64,{data}
+            if url.startswith("data:"):
+                mime = url.split(";")[0].split(":")[1]
+                b64 = url.split(",", 1)[1]
+                content_blocks.append({
+                    "type": "image",
+                    "source": {"type": "base64", "media_type": mime, "data": b64},
+                })
+        content_blocks.append({"type": "text", "text": message})
+
+        msgs = []
+        for h in (history or [])[-10:]:
+            if h.get("role"):
+                msgs.append({"role": h["role"], "content": h.get("content", "")})
+        msgs.append({"role": "user", "content": content_blocks})
+
+        with httpx.Client(timeout=120) as c:
+            r = c.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json={"model": model, "system": system, "messages": msgs, "max_tokens": 2000},
+            )
+            r.raise_for_status()
+            return r.json()["content"][0]["text"]
+
+    if provider == "openrouter":
+        # Many OpenRouter models support vision via the same OpenAI format
+        api_key = vault_config.openrouter_api_key
+        content_blocks = [{"type": "text", "text": message}]
+        for img in images:
+            url = img.get("dataUrl") or img.get("url")
+            if url:
+                content_blocks.append({"type": "image_url", "image_url": {"url": url}})
+        msgs = [{"role": "system", "content": system}]
+        for h in (history or [])[-10:]:
+            if h.get("role"):
+                msgs.append({"role": h["role"], "content": h.get("content", "")})
+        msgs.append({"role": "user", "content": content_blocks})
+
+        with httpx.Client(timeout=120) as c:
+            r = c.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "HTTP-Referer": "http://localhost:8055",
+                    "X-Title": "RatVault",
+                },
+                json={"model": model, "messages": msgs, "max_tokens": 2000},
+            )
+            if r.status_code == 200:
+                return r.json()["choices"][0]["message"]["content"]
+            # If model doesn't support vision, OpenRouter returns 400 — fall through
+
+    return None
 
 
 @app.post("/api/entries")
@@ -620,17 +738,43 @@ async def upload_profile(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/assets/{file_path:path}")
+async def serve_assets(file_path: str):
+    """Serve vault media assets from repo-root assets/ (wiki images, videos, etc.)"""
+    assets_root = Path("assets").resolve()
+    try:
+        candidate = (assets_root / file_path).resolve()
+        candidate.relative_to(assets_root)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    if candidate.is_file():
+        return FileResponse(candidate)
+    # Fall back to dashboard/assets/ for profile images
+    dash_assets = Path("dashboard/assets").resolve()
+    try:
+        dash_candidate = (dash_assets / file_path).resolve()
+        dash_candidate.relative_to(dash_assets)
+        if dash_candidate.is_file():
+            return FileResponse(dash_candidate)
+    except ValueError:
+        pass
+    raise HTTPException(status_code=404, detail="Not found")
+
+
 @app.get("/{file_path:path}")
 async def serve_files(file_path: str):
     """Serve static files from dashboard directory"""
-    from pathlib import Path
-    file_full_path = Path("dashboard") / file_path
-    if file_full_path.is_file():
-        return FastAPIFileResponse(file_full_path)
-    elif file_path == "" or file_path == "/":
-        return FastAPIFileResponse("dashboard/index.html")
-    else:
-        return FastAPIFileResponse("dashboard/index.html")
+    dashboard_root = Path("dashboard").resolve()
+    if not file_path or file_path == "/":
+        return FileResponse(dashboard_root / "index.html")
+    try:
+        candidate = (dashboard_root / file_path).resolve()
+        candidate.relative_to(dashboard_root)  # raises ValueError if outside dashboard/
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    if candidate.is_file():
+        return FileResponse(candidate)
+    return FileResponse(dashboard_root / "index.html")
 
 
 if __name__ == "__main__":

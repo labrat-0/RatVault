@@ -457,6 +457,18 @@
 
         #chat-send:hover { opacity: 0.85; }
         #chat-send:disabled { opacity: 0.4; cursor: not-allowed; }
+        .chat-model-bar {
+            display: flex; align-items: center; gap: 6px;
+            margin-bottom: 6px; font-size: 10px;
+        }
+        .chat-model-bar label { color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; flex-shrink: 0; }
+        .chat-model-bar select {
+            background: var(--bg2); border: 1px solid var(--dim2); color: var(--fg);
+            font-family: var(--mono); font-size: 10px; padding: 2px 4px;
+            border-radius: 3px; cursor: pointer; max-width: 180px;
+        }
+        .chat-model-bar select:focus { outline: none; border-color: var(--accent); }
+        #chat-model-sel { flex: 1; max-width: 220px; }
 
         #chat-attach {
             position: absolute;
@@ -966,22 +978,21 @@
 
         .sb-profile-media {
             width: 100%;
-            height: 180px;
+            height: 200px;
             overflow: hidden;
             background: #000;
             position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
+            border-bottom: 1px solid var(--border);
         }
 
         .sb-profile-media img,
         .sb-profile-media video {
-            max-width: 100%;
-            max-height: 100%;
-            width: auto;
-            height: auto;
-            object-fit: contain;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
             display: block;
         }
 
@@ -1381,20 +1392,44 @@
             to { transform: translateX(0); opacity: 1; }
         }
 
-        /* Responsive */
-        @media (max-width: 768px) {
-            main { grid-template-columns: 1fr; }
+        /* Responsive — mobile */
+        @media (max-width: 900px) {
+            header { padding: 6px 10px; }
+            .wordmark { font-size: 12px; }
+            .meta { font-size: 9px; }
+            main { grid-template-columns: 1fr; padding: 6px; gap: 6px; }
             main.sidebar-left { grid-template-columns: 1fr; }
-            .sidebar { display: none; }
+            .sidebar {
+                display: none;
+                position: fixed;
+                top: 32px; bottom: 28px; right: 0; width: 86vw; max-width: 320px;
+                z-index: 90; box-shadow: -4px 0 16px rgba(0,0,0,0.6);
+                background: var(--bg);
+            }
+            .sidebar.mobile-open { display: flex; flex-direction: column; }
+            .mobile-menu-btn {
+                display: flex !important;
+                position: fixed; top: 6px; right: 8px; z-index: 100;
+                background: var(--bg2); border: 1px solid var(--accent);
+                color: var(--accent); padding: 4px 10px; font-family: var(--mono);
+                font-size: 14px; cursor: pointer; border-radius: 3px;
+            }
+            footer { font-size: 8px; padding: 4px 6px; gap: 6px; flex-wrap: wrap; }
+            footer .stat-cell.fill { display: none; }
+            .view-container { padding: 6px; }
+            .doc-panes.mode-split { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+            #chat-input-row { flex-wrap: wrap; }
         }
+        .mobile-menu-btn { display: none; }
     </style>
 </head>
 <body>
 
 <header>
     <div class="wordmark"><span class="bracket">[</span> RAT VAULT <span class="bracket">]</span></div>
-    <div class="meta">terminal · v1.1</div>
+    <div class="meta">web-dash v1.1</div>
 </header>
+<button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle sidebar">☰</button>
 
 <main>
     <!-- View Container -->
@@ -1412,6 +1447,17 @@
                 </div>
             </div>
             <div class="chat-input-wrap">
+                <div class="chat-model-bar">
+                    <label>via</label>
+                    <select id="chat-provider-sel">
+                        <option value="ollama">Ollama</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="anthropic">Anthropic</option>
+                        <option value="openrouter">OpenRouter</option>
+                    </select>
+                    <select id="chat-model-sel"><option value="">— select model —</option></select>
+                    <button id="chat-fetch-models" style="background:none;border:1px solid var(--dim2);color:var(--dim);padding:2px 7px;border-radius:3px;cursor:pointer;font-family:var(--mono);font-size:10px;" title="Fetch available models">↻</button>
+                </div>
                 <div id="chat-pending-attachments" style="display:none;flex-wrap:wrap;gap:6px;margin-bottom:6px;"></div>
                 <div class="chat-input-box">
                     <button id="chat-attach" title="Attach file or image">📎</button>
@@ -1419,7 +1465,10 @@
                     <button id="chat-send" title="Send (Enter)">↑</button>
                     <input type="file" id="chat-file-input" multiple accept="image/*,.pdf,.txt,.md,.csv,.json,.yaml,.yml" style="display:none">
                 </div>
-                <div class="chat-hint">Enter to send · Shift+Enter for newline · 📎 attach images/files</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:10px;color:var(--dim);">
+                    <span>Enter to send · Shift+Enter newline · 📎 image/files</span>
+                    <button id="chat-clear" style="background:none;border:1px solid var(--dim2);color:var(--dim);padding:3px 10px;border-radius:3px;cursor:pointer;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:0.08em;">🗑 Clear Chat</button>
+                </div>
             </div>
         </div>
 
@@ -1496,9 +1545,7 @@ Save → goes to inbox/ for re-ingestion."></textarea>
             <!-- Profile -->
             <div class="sb-profile">
                 <div class="sb-profile-media" id="sb-profile-media">
-                    <video id="sb-profile-video" autoplay loop muted playsinline>
-                        <source src="/assets/labrat-vid.mp4" type="video/mp4">
-                    </video>
+                    <div class="sb-profile-fallback">[ loading... ]</div>
                 </div>
                 <div class="sb-profile-actions">
                     <label for="sb-profile-upload" class="sb-profile-btn">📷 Picture</label>
@@ -1577,10 +1624,10 @@ Save → goes to inbox/ for re-ingestion."></textarea>
     <div class="stat-cell invert">&nbsp;RAT VAULT&nbsp;</div>
     <div class="stat-cell">notes <span style="color:var(--dim)" id="ft-notes">0</span></div>
     <div class="stat-cell">inbox <span style="color:var(--dim)" id="ft-inbox">0</span></div>
-    <div class="stat-cell fill">terminal · local knowledge system</div>
-    <div class="stat-cell">
-        tokens
-        <span style="color:var(--dim)" id="ft-tokens">0/11539</span>
+    <div class="stat-cell fill">web-dash · local knowledge system</div>
+    <div class="stat-cell" title="Approximate context use: chat-history chars / 4 ÷ model context window. Clear chat to reset.">
+        ctx
+        <span style="color:var(--dim)" id="ft-tokens">0/8k</span>
         <div class="token-bar-bg"><div class="token-bar-fill" id="ft-tokenbar"></div></div>
         <span style="color:var(--dim)" id="ft-tokenpct">0%</span>
     </div>
@@ -1622,11 +1669,27 @@ Save → goes to inbox/ for re-ingestion."></textarea>
             <div class="field-hint" id="cfg-fetch-hint"></div>
         </div>
 
-        <div class="field-group" id="cfg-key-group" style="display:none">
-            <label>API Key</label>
-            <input type="password" id="cfg-key" placeholder="sk-..." autocomplete="off">
+        <div class="field-group">
+            <label>API Keys</label>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
+                <div class="field-row" style="align-items:center;">
+                    <span style="font-size:10px;color:var(--dim);width:90px;flex-shrink:0;text-transform:uppercase;letter-spacing:0.06em;">OpenAI</span>
+                    <input type="password" id="cfg-key-openai" placeholder="sk-proj-..." autocomplete="off" style="flex:1;font-size:11px;">
+                    <span id="cfg-key-status-openai" style="font-size:10px;color:var(--accent);flex-shrink:0;display:none;">🔒</span>
+                </div>
+                <div class="field-row" style="align-items:center;">
+                    <span style="font-size:10px;color:var(--dim);width:90px;flex-shrink:0;text-transform:uppercase;letter-spacing:0.06em;">Anthropic</span>
+                    <input type="password" id="cfg-key-anthropic" placeholder="sk-ant-..." autocomplete="off" style="flex:1;font-size:11px;">
+                    <span id="cfg-key-status-anthropic" style="font-size:10px;color:var(--accent);flex-shrink:0;display:none;">🔒</span>
+                </div>
+                <div class="field-row" style="align-items:center;">
+                    <span style="font-size:10px;color:var(--dim);width:90px;flex-shrink:0;text-transform:uppercase;letter-spacing:0.06em;">OpenRouter</span>
+                    <input type="password" id="cfg-key-openrouter" placeholder="sk-or-v1-..." autocomplete="off" style="flex:1;font-size:11px;">
+                    <span id="cfg-key-status-openrouter" style="font-size:10px;color:var(--accent);flex-shrink:0;display:none;">🔒</span>
+                </div>
+            </div>
+            <div class="field-hint" style="margin-top:6px;">Leave blank to keep existing key. Encrypted with master password above.</div>
             <div class="field-hint" id="cfg-key-hint"></div>
-            <div class="field-hint" id="cfg-key-status" style="color:var(--accent);display:none;">🔒 Encrypted key on file — leave blank to keep, type to replace</div>
         </div>
 
         <div class="status-msg" id="cfg-status"></div>
@@ -1780,6 +1843,7 @@ class RatVault {
         const send = document.getElementById('chat-send');
         const attach = document.getElementById('chat-attach');
         const fileInput = document.getElementById('chat-file-input');
+        const clearBtn = document.getElementById('chat-clear');
 
         this.pendingAttachments = [];
 
@@ -1800,6 +1864,11 @@ class RatVault {
             this.handleChatAttachments(Array.from(e.target.files));
             e.target.value = '';
         });
+
+        clearBtn.addEventListener('click', () => this.clearChat());
+
+        // Chat model bar
+        this.initChatModelBar();
 
         // Drag-and-drop into chat area
         const chatView = document.getElementById('chat-view');
@@ -1827,7 +1896,7 @@ class RatVault {
 
             if (isImage) {
                 dataUrl = await this.fileToDataUrl(f);
-            } else if (f.size < 100000 && /\.(md|txt|json|yaml|yml|csv|log)$/i.test(f.name)) {
+            } else if (f.size < 200000 && /\.(md|txt|json|yaml|yml|csv|log)$/i.test(f.name)) {
                 textContent = await f.text();
             }
 
@@ -1839,8 +1908,24 @@ class RatVault {
                 dataUrl,
                 textContent,
             });
+
+            // Also save the file to inbox/ for indexing (so it persists in the vault)
+            try {
+                const fd = new FormData();
+                fd.append('file', f);
+                const r = await fetch('/api/inbox/upload', {method: 'POST', body: fd});
+                if (r.ok) {
+                    this.toast(`✓ ${f.name} → inbox`);
+                } else {
+                    this.toast(`✗ Inbox upload failed: ${f.name}`);
+                }
+            } catch (e) {
+                this.toast(`✗ Upload error: ${e.message}`);
+            }
         }
         this.renderPendingAttachments();
+        // Refresh stats so footer/sidebar show new inbox count
+        this.loadStats();
     }
 
     fileToDataUrl(file) {
@@ -1894,26 +1979,29 @@ class RatVault {
         const attachments = this.pendingAttachments || [];
         if (!text && !attachments.length) return;
 
-        // Build message body for display + LLM context
-        let displayText = text;
-        let llmText = text;
+        // Separate images (sent to vision API) from text files (inlined into prompt)
+        const images = attachments.filter(a => a.isImage && a.dataUrl)
+            .map(a => ({name: a.name, dataUrl: a.dataUrl}));
+        const textFiles = attachments.filter(a => !a.isImage);
 
-        if (attachments.length) {
-            const fileLines = attachments.map(a => {
-                if (a.isImage) return `[Image attached: ${a.name}]`;
+        let llmText = text;
+        if (textFiles.length) {
+            const fileLines = textFiles.map(a => {
                 if (a.textContent) return `[File: ${a.name}]\n\n${a.textContent}`;
-                return `[Attached: ${a.name} (${this.fmtSize(a.size)})]`;
+                return `[Attached: ${a.name} (${this.fmtSize(a.size)}) — saved to inbox]`;
             });
             llmText = (text ? text + '\n\n' : '') + fileLines.join('\n\n');
         }
+        if (images.length && !text) {
+            llmText = 'What do you see in this image?';
+        }
 
-        this.addMessage('user', displayText || '(attachment)', attachments);
+        this.addMessage('user', text || '(attachment)', attachments);
         input.value = '';
         input.style.height = 'auto';
         this.pendingAttachments = [];
         this.renderPendingAttachments();
 
-        // Show typing indicator
         const typingEl = this.addTypingIndicator();
 
         const settings = JSON.parse(localStorage.getItem('rv-settings') || '{}');
@@ -1933,6 +2021,7 @@ class RatVault {
                     provider: settings.provider || null,
                     model: settings.model || null,
                     api_key: inMemKey || null,
+                    images: images,
                 })
             });
             const data = await r.json();
@@ -1941,7 +2030,10 @@ class RatVault {
                 this.addMessage('assistant', data.reply);
                 this.messages.push({role: 'user', content: llmText});
                 this.messages.push({role: 'assistant', content: data.reply});
-                this.addTokens(Math.ceil((llmText.length + data.reply.length) / 4));
+                this.updateTokens();
+                if (data.vision) {
+                    this.toast('✓ Image processed by vision model');
+                }
             } else if (data.error) {
                 this.addMessage('error', `Error: ${data.error}`);
             }
@@ -1951,6 +2043,19 @@ class RatVault {
         } finally {
             sendBtn.disabled = false;
         }
+    }
+
+    clearChat() {
+        if (!confirm('Clear the chat window? (Saved attachments stay in inbox.)')) return;
+        const wrap = document.getElementById('chat-messages');
+        wrap.innerHTML = '';
+        this.messages = [];
+        this.pendingAttachments = [];
+        this.renderPendingAttachments();
+        // Restore the welcome message
+        this.addMessage('assistant', 'Chat cleared. Ask me anything about your vault.');
+        this.updateTokens();
+        this.toast('✓ Chat cleared');
     }
 
     addTypingIndicator() {
@@ -2002,10 +2107,45 @@ class RatVault {
         const body = document.createElement('div');
         body.className = 'msg-body';
 
+        // Author row + actions on the right
+        const authorRow = document.createElement('div');
+        authorRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;';
+
         const author = document.createElement('div');
         author.className = 'msg-author';
         author.textContent = role === 'user' ? 'You' : (role === 'error' ? 'Error' : 'RatVault');
-        body.appendChild(author);
+        authorRow.appendChild(author);
+
+        // Copy button only for assistant messages
+        if (role === 'assistant') {
+            const actions = document.createElement('div');
+            actions.style.cssText = 'display:flex;gap:4px;';
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'msg-copy-btn';
+            copyBtn.textContent = '📋 Copy';
+            copyBtn.title = 'Copy reply to clipboard';
+            copyBtn.style.cssText = 'background:var(--bg2);border:1px solid var(--dim2);color:var(--dim);padding:2px 8px;border-radius:3px;cursor:pointer;font-family:var(--mono);font-size:9px;letter-spacing:0.05em;';
+            copyBtn.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(content);
+                    copyBtn.textContent = '✓ Copied';
+                    setTimeout(() => copyBtn.textContent = '📋 Copy', 1500);
+                } catch (e) {
+                    copyBtn.textContent = '✗ Failed';
+                }
+            });
+            copyBtn.addEventListener('mouseenter', () => {
+                copyBtn.style.borderColor = 'var(--accent)';
+                copyBtn.style.color = 'var(--accent)';
+            });
+            copyBtn.addEventListener('mouseleave', () => {
+                copyBtn.style.borderColor = 'var(--dim2)';
+                copyBtn.style.color = 'var(--dim)';
+            });
+            actions.appendChild(copyBtn);
+            authorRow.appendChild(actions);
+        }
+        body.appendChild(authorRow);
 
         const cont = document.createElement('div');
         cont.className = 'msg-content';
@@ -2017,7 +2157,6 @@ class RatVault {
             cont.appendChild(p);
         }
 
-        // Inline attachments preview
         if (attachments && attachments.length) {
             attachments.forEach(att => {
                 if (att.isImage && att.dataUrl) {
@@ -2362,6 +2501,8 @@ class RatVault {
 
             this.toast('✓ Saved to inbox + Notes (run reindex to integrate)');
             this.loadStats();
+            this.loadInboxDocs();
+            this.switchTab('inbox');
         } catch (e) {
             this.toast(`✗ ${e.message}`);
         }
@@ -2379,16 +2520,30 @@ class RatVault {
         upload.addEventListener('change', async e => {
             const f = e.target.files[0];
             if (!f) return;
+            const okExt = /\.(png|jpe?g|gif|webp|mp4|webm|mov)$/i;
+            if (!okExt.test(f.name)) {
+                this.toast('✗ Unsupported file type');
+                e.target.value = '';
+                return;
+            }
             try {
                 const fd = new FormData();
                 fd.append('file', f);
                 const r = await fetch('/api/profile', {method: 'POST', body: fd});
-                if (!r.ok) throw new Error('Upload failed');
+                if (!r.ok) {
+                    const t = await r.text();
+                    throw new Error(`Upload failed: ${r.status} ${t.slice(0,80)}`);
+                }
                 const data = await r.json();
-                this.setProfileMedia(data.url, f.type);
+                if (!data.url) throw new Error('Server returned no URL');
+                // Determine media type from filename ext (more reliable than f.type for gif/mov)
+                const ext = data.url.split('.').pop().toLowerCase();
+                const isVid = ['mp4','webm','mov'].includes(ext);
+                this.setProfileMedia(data.url, isVid ? 'video/' : 'image/');
                 this.toast('✓ Profile updated');
             } catch (err) {
                 this.toast(`✗ ${err.message}`);
+                console.error('Profile upload error:', err);
             }
             e.target.value = '';
         });
@@ -2396,6 +2551,14 @@ class RatVault {
         document.getElementById('btn-reindex').addEventListener('click', () => this.runReindex());
         document.getElementById('btn-theme').addEventListener('click', () => this.cycleTheme());
         document.getElementById('btn-screenshot').addEventListener('click', () => this.takeScreenshot());
+
+        const mobileBtn = document.getElementById('mobile-menu-btn');
+        if (mobileBtn) {
+            mobileBtn.addEventListener('click', () => {
+                const sb = document.querySelector('.sidebar');
+                sb.classList.toggle('mobile-open');
+            });
+        }
 
         // Apply saved theme on load
         this.applyTheme(localStorage.getItem('rv-theme') || 'green');
@@ -2526,6 +2689,12 @@ class RatVault {
                 this.toast('✗ Reindex failed');
             }
             this.loadStats();
+            this.loadNotesDocs();
+            this.loadInboxDocs();
+            // Refresh open doc preview if user is viewing one
+            if (this.currentDoc && !this.currentDoc.isNew) {
+                this.openDoc(this.currentDoc.slug);
+            }
         } catch (e) {
             status.textContent = '✗ ' + e.message;
         } finally {
@@ -2558,13 +2727,24 @@ class RatVault {
 
             document.getElementById('stat-entries').textContent = entries.length;
             document.getElementById('stat-inbox').textContent = inbox.length;
-            document.getElementById('stat-provider').textContent = (prov.provider || '-').toUpperCase();
-            const modelShort = (prov.model || '-').split('/').pop().slice(0, 14);
+
+            // Prefer localStorage (active session) over server config for display
+            const ls = JSON.parse(localStorage.getItem('rv-settings') || '{}');
+            const activeProvider = ls.provider || prov.provider || '-';
+            const activeModel = ls.model || prov.model || '-';
+            const modelShort = activeModel.split('/').pop().slice(0, 14);
+            document.getElementById('stat-provider').textContent = activeProvider.toUpperCase();
             document.getElementById('stat-model').textContent = modelShort.toUpperCase();
 
             document.getElementById('ft-notes').textContent = entries.length;
             document.getElementById('ft-inbox').textContent = inbox.length;
-            document.getElementById('ft-model').textContent = `${prov.provider}/${modelShort}`.toUpperCase();
+            document.getElementById('ft-model').textContent = `${activeProvider}/${modelShort}`.toUpperCase();
+
+            // Keep chat model bar in sync
+            const cpSel = document.getElementById('chat-provider-sel');
+            const cmSel = document.getElementById('chat-model-sel');
+            if (cpSel && cpSel.value !== activeProvider) cpSel.value = activeProvider;
+            if (cmSel && cmSel.value !== activeModel) cmSel.value = activeModel;
 
             this.renderActivity(entries);
         } catch (e) {}
@@ -2610,19 +2790,34 @@ class RatVault {
         this.updateTokens();
     }
 
-    addTokens(n) {
-        const data = JSON.parse(localStorage.getItem('rv-tokens') || '{"used":0,"max":11539}');
-        data.used = (data.used || 0) + n;
-        localStorage.setItem('rv-tokens', JSON.stringify(data));
-        this.updateTokens();
+    // Approximate model context window (tokens) by id substring
+    modelContextLimit(model) {
+        if (!model) return 8000;
+        const m = model.toLowerCase();
+        if (m.includes('gpt-4o') || m.includes('gpt-4-turbo')) return 128000;
+        if (m.includes('claude-3') || m.includes('claude-haiku') || m.includes('claude-sonnet') || m.includes('claude-opus')) return 200000;
+        if (m.includes('gpt-4')) return 8192;
+        if (m.includes('gpt-3.5')) return 16385;
+        if (m.includes('llama3') || m.includes('llama-3')) return 8000;
+        if (m.includes('mistral') || m.includes('mixtral')) return 32000;
+        if (m.includes('phi3')) return 4000;
+        if (m.includes('deepseek')) return 16000;
+        return 8000;
     }
 
+    addTokens(_n) { this.updateTokens(); }
+
     updateTokens() {
-        const data = JSON.parse(localStorage.getItem('rv-tokens') || '{"used":0,"max":11539}');
-        const used = data.used || 0;
-        const max = data.max || 11539;
+        // Real estimate: sum chars across chat history + system context, ÷ 4 ≈ tokens
+        const hist = this.messages || [];
+        let chars = 0;
+        for (const m of hist) chars += (m.content || '').length;
+        const used = Math.round(chars / 4);
+        const settings = JSON.parse(localStorage.getItem('rv-settings') || '{}');
+        const max = this.modelContextLimit(settings.model);
         const pct = Math.min(100, Math.round((used / max) * 100));
-        document.getElementById('ft-tokens').textContent = `${used}/${max}`;
+        const fmt = n => n >= 1000 ? (n/1000).toFixed(n>=10000?0:1) + 'k' : String(n);
+        document.getElementById('ft-tokens').textContent = `${fmt(used)}/${fmt(max)}`;
         document.getElementById('ft-tokenbar').style.width = pct + '%';
         document.getElementById('ft-tokenpct').textContent = pct + '%';
     }
@@ -2634,6 +2829,89 @@ class RatVault {
         t.style.display = 'block';
         clearTimeout(this._toastTimer);
         this._toastTimer = setTimeout(() => t.style.display = 'none', 2500);
+    }
+
+    // ==================== CHAT MODEL BAR ====================
+    initChatModelBar() {
+        const provSel = document.getElementById('chat-provider-sel');
+        const modelSel = document.getElementById('chat-model-sel');
+        const fetchBtn = document.getElementById('chat-fetch-models');
+
+        const s = JSON.parse(localStorage.getItem('rv-settings') || '{}');
+        if (s.provider) provSel.value = s.provider;
+
+        const _saveAndSync = () => {
+            const p = provSel.value;
+            const m = modelSel.value;
+            if (!m) return;
+            localStorage.setItem('rv-settings', JSON.stringify({provider: p, model: m}));
+            this.loadStats();
+        };
+
+        const _populateModels = (provider, selectValue) => {
+            const models = this.MODELS[provider] || [];
+            while (modelSel.firstChild) modelSel.removeChild(modelSel.firstChild);
+            if (!models.length) {
+                const o = document.createElement('option');
+                o.value = ''; o.textContent = '— click ↻ to fetch —';
+                modelSel.appendChild(o);
+            } else {
+                models.forEach(m => {
+                    const o = document.createElement('option');
+                    o.value = m; o.textContent = m;
+                    modelSel.appendChild(o);
+                });
+                if (selectValue) modelSel.value = selectValue;
+                else if (s.model && provSel.value === provider) modelSel.value = s.model;
+            }
+        };
+
+        _populateModels(provSel.value, s.provider === provSel.value ? s.model : null);
+
+        provSel.addEventListener('change', () => {
+            _populateModels(provSel.value, null);
+            _saveAndSync();
+        });
+        modelSel.addEventListener('change', _saveAndSync);
+
+        fetchBtn.addEventListener('click', async () => {
+            const provider = provSel.value;
+            const s2 = JSON.parse(localStorage.getItem('rv-settings') || '{}');
+            const key = (this._verifiedKeys && this._verifiedKeys[provider]) || null;
+            fetchBtn.disabled = true;
+            fetchBtn.textContent = '…';
+            try {
+                let models = [];
+                if (provider === 'ollama') {
+                    const r = await fetch('http://localhost:11434/api/tags');
+                    if (!r.ok) throw new Error('Ollama not running');
+                    models = ((await r.json()).models || []).map(m => m.name);
+                } else if (provider === 'openai' && key) {
+                    const r = await fetch('https://api.openai.com/v1/models', {headers: {'Authorization': `Bearer ${key}`}});
+                    if (!r.ok) throw new Error('OpenAI auth failed');
+                    models = (await r.json()).data.filter(m => /^(gpt-|o1-|o3-)/.test(m.id) && !/embed|whisper|tts|dall-e/.test(m.id)).map(m => m.id).sort();
+                } else if (provider === 'anthropic') {
+                    models = this.MODELS.anthropic;
+                } else if (provider === 'openrouter' && key) {
+                    const r = await fetch('https://openrouter.ai/api/v1/models', {headers: {'Authorization': `Bearer ${key}`, 'HTTP-Referer': location.origin}});
+                    if (!r.ok) throw new Error('OpenRouter failed');
+                    models = (await r.json()).data.map(m => m.id).sort();
+                } else {
+                    this.toast('Unlock key in Config first to fetch ' + provider + ' models');
+                    return;
+                }
+                if (models.length) {
+                    this.MODELS[provider] = models;
+                    _populateModels(provider, s2.model);
+                    this.toast('✓ ' + models.length + ' models loaded');
+                }
+            } catch (e) {
+                this.toast('✗ ' + e.message);
+            } finally {
+                fetchBtn.disabled = false;
+                fetchBtn.textContent = '↻';
+            }
+        });
     }
 
     // ==================== CONFIG MODAL ====================
@@ -2670,10 +2948,14 @@ class RatVault {
 
         // Clear input fields
         document.getElementById('cfg-master-pw').value = '';
-        document.getElementById('cfg-key').value = '';
+        ['openai','anthropic','openrouter'].forEach(p => {
+            const el = document.getElementById(`cfg-key-${p}`);
+            if (el) el.value = '';
+            const st = document.getElementById(`cfg-key-status-${p}`);
+            if (st) st.style.display = 'none';
+        });
         document.getElementById('cfg-master-hint').textContent =
             '✓ All keys reset. Set a new master password to encrypt new keys.';
-        document.getElementById('cfg-key-status').style.display = 'none';
 
         this.toast(`✓ Reset ${toRemove.length} stored key${toRemove.length !== 1 ? 's' : ''}`);
         this.updateProviderUI(document.getElementById('cfg-provider').value);
@@ -2699,7 +2981,10 @@ class RatVault {
 
     closeConfig() {
         // Clear sensitive inputs on close to avoid keeping plaintext in DOM
-        document.getElementById('cfg-key').value = '';
+        ['openai','anthropic','openrouter'].forEach(p => {
+            const el = document.getElementById(`cfg-key-${p}`);
+            if (el) el.value = '';
+        });
         document.getElementById('cfg-master-pw').value = '';
         document.getElementById('cfg-status').textContent = '';
         document.getElementById('config-modal').classList.remove('active');
@@ -2710,35 +2995,28 @@ class RatVault {
         const provider = s.provider || 'ollama';
         document.getElementById('cfg-provider').value = provider;
         this.updateProviderUI(provider, s.model);
+        // Show master hint based on whether any keys are stored
+        const anyKeys = ['openai','anthropic','openrouter'].some(p => localStorage.getItem(`rv-key-${p}`));
+        if (anyKeys) {
+            document.getElementById('cfg-master-hint').textContent = '🔒 Encrypted keys on file — enter master password + Unlock to activate for session.';
+        }
     }
 
     updateProviderUI(provider, selected) {
-        document.getElementById('cfg-key-group').style.display =
-            provider === 'ollama' ? 'none' : 'block';
         document.getElementById('cfg-provider-hint').textContent = this.HINTS[provider] || '';
         document.getElementById('cfg-key-hint').textContent = this.HINTS[provider] || '';
 
-        // Show stored-key indicator (without revealing the key)
-        const hasKey = !!localStorage.getItem(`rv-key-${provider}`);
-        const keyInput = document.getElementById('cfg-key');
-        const keyStatus = document.getElementById('cfg-key-status');
-        keyInput.value = '';
-        if (hasKey && provider !== 'ollama') {
-            keyInput.placeholder = '🔒 Encrypted key stored — type new key to replace';
-            keyStatus.style.display = 'block';
-            document.getElementById('cfg-master-hint').textContent =
-                '🔒 Encrypted key found — enter master password to verify (key never displayed)';
-        } else {
-            keyInput.placeholder = 'sk-...';
-            keyStatus.style.display = 'none';
-            if (provider !== 'ollama') {
-                document.getElementById('cfg-master-hint').textContent =
-                    'Set a master password to encrypt your new API key.';
-            }
-        }
+        // Show lock indicator for each provider that has a stored key
+        ['openai', 'anthropic', 'openrouter'].forEach(p => {
+            const hasKey = !!localStorage.getItem(`rv-key-${p}`);
+            const statusEl = document.getElementById(`cfg-key-status-${p}`);
+            const inputEl = document.getElementById(`cfg-key-${p}`);
+            if (statusEl) statusEl.style.display = hasKey ? 'inline' : 'none';
+            if (inputEl) inputEl.placeholder = hasKey ? '🔒 stored — type to replace' : ({openai:'sk-proj-...', anthropic:'sk-ant-...', openrouter:'sk-or-v1-...'}[p] || 'sk-...');
+        });
 
         const sel = document.getElementById('cfg-model');
-        sel.innerHTML = '';
+        while (sel.firstChild) sel.removeChild(sel.firstChild);
         const models = this.MODELS[provider] || [];
         if (!models.length) {
             const opt = document.createElement('option');
@@ -2821,90 +3099,91 @@ class RatVault {
     }
 
     async unlockKey() {
-        // Verify the master password against the stored key WITHOUT revealing the key.
-        // Decrypts in memory, then immediately discards.
+        // Decrypt all stored keys into memory for this session using master password.
         const pw = document.getElementById('cfg-master-pw').value;
         if (!pw) {
             document.getElementById('cfg-status').textContent = 'Enter master password first.';
             return;
         }
-        const provider = document.getElementById('cfg-provider').value;
-        const enc = localStorage.getItem(`rv-key-${provider}`);
-        if (!enc) {
-            document.getElementById('cfg-status').textContent = `No saved key for ${provider}.`;
-            return;
+        this._verifiedKeys = this._verifiedKeys || {};
+        let unlocked = 0;
+        let failed = false;
+        for (const p of ['openai', 'anthropic', 'openrouter']) {
+            const enc = localStorage.getItem(`rv-key-${p}`);
+            if (!enc) continue;
+            try {
+                this._verifiedKeys[p] = await this.decryptKey(enc, pw);
+                unlocked++;
+            } catch (e) {
+                failed = true;
+            }
         }
-        try {
-            const key = await this.decryptKey(enc, pw);
-            // Mark as verified for this session (use server-side key forwarding)
-            this._verifiedKeys = this._verifiedKeys || {};
-            this._verifiedKeys[provider] = key;  // kept only in memory for this session
-            document.getElementById('cfg-master-hint').textContent =
-                '✓ Master password verified. Key remains encrypted in storage.';
-            document.getElementById('cfg-status').textContent =
-                '✓ Key unlocked for this session (never displayed).';
-        } catch (e) {
-            document.getElementById('cfg-master-hint').textContent =
-                '✗ Wrong master password. Use Reset Keys if forgotten.';
+        if (failed) {
+            document.getElementById('cfg-master-hint').textContent = '✗ Wrong master password. Use Reset Keys if forgotten.';
             document.getElementById('cfg-status').textContent = 'Decryption failed.';
+        } else if (unlocked > 0) {
+            document.getElementById('cfg-master-hint').textContent = `✓ ${unlocked} key(s) unlocked for this session.`;
+            document.getElementById('cfg-status').textContent = '✓ Keys active — never displayed.';
+        } else {
+            document.getElementById('cfg-status').textContent = 'No stored keys found. Enter keys above and save.';
         }
     }
 
     async saveConfig() {
         const provider = document.getElementById('cfg-provider').value;
         const model = document.getElementById('cfg-model').value;
-        const apiKey = document.getElementById('cfg-key').value.trim();
         const masterPw = document.getElementById('cfg-master-pw').value;
         const status = document.getElementById('cfg-status');
-        const hasStoredKey = !!localStorage.getItem(`rv-key-${provider}`);
 
         if (!model) { status.textContent = 'Select a model first.'; return; }
 
-        // Provider needs a key (or pre-existing stored key)
-        if (provider !== 'ollama' && !apiKey && !hasStoredKey) {
-            status.textContent = 'Enter an API key to authenticate.';
-            return;
-        }
-
-        // Encrypt and store new key if user typed one
-        if (apiKey && provider !== 'ollama') {
+        // Encrypt and store any newly entered keys for all providers
+        const providerKeys = ['openai', 'anthropic', 'openrouter'];
+        for (const p of providerKeys) {
+            const inputEl = document.getElementById(`cfg-key-${p}`);
+            if (!inputEl) continue;
+            const rawKey = inputEl.value.trim();
+            if (!rawKey) continue;
             if (!masterPw) {
-                status.textContent = 'Master password required to encrypt the new key.';
+                status.textContent = 'Master password required to encrypt keys.';
                 return;
             }
             try {
-                const enc = await this.encryptKey(apiKey, masterPw);
-                localStorage.setItem(`rv-key-${provider}`, enc);
+                const enc = await this.encryptKey(rawKey, masterPw);
+                localStorage.setItem(`rv-key-${p}`, enc);
+                // Also keep in memory for this session
+                this._verifiedKeys = this._verifiedKeys || {};
+                this._verifiedKeys[p] = rawKey;
             } catch (e) {
                 status.textContent = 'Encryption failed: ' + e.message;
                 return;
             }
         }
 
-        localStorage.setItem('rv-settings', JSON.stringify({provider, model}));
-
-        // Forward key to server for THIS session only (never persisted client-side plaintext).
-        // If user provided a new key, send it; otherwise skip (server will use stored config).
-        if (apiKey) {
-            try {
-                await fetch('/api/config', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({provider, model, api_key: apiKey}),
-                });
-            } catch (e) {}
-        } else {
-            try {
-                await fetch('/api/config', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({provider, model}),
-                });
-            } catch (e) {}
+        // Active provider must have a key (or stored key) if not ollama
+        const hasStoredKey = !!localStorage.getItem(`rv-key-${provider}`);
+        if (provider !== 'ollama' && !hasStoredKey) {
+            status.textContent = `Enter a key for ${provider} above.`;
+            return;
         }
 
-        // Clear the input field immediately - never keep plaintext in DOM
-        document.getElementById('cfg-key').value = '';
+        localStorage.setItem('rv-settings', JSON.stringify({provider, model}));
+
+        // Send active provider + key to server for this session
+        const sessionKey = (this._verifiedKeys && this._verifiedKeys[provider]) || null;
+        try {
+            await fetch('/api/config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({provider, model, ...(sessionKey ? {api_key: sessionKey} : {})}),
+            });
+        } catch (e) {}
+
+        // Clear all key inputs immediately
+        providerKeys.forEach(p => {
+            const el = document.getElementById(`cfg-key-${p}`);
+            if (el) el.value = '';
+        });
         document.getElementById('cfg-master-pw').value = '';
 
         this.closeConfig();

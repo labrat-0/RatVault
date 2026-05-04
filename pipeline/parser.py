@@ -5,7 +5,9 @@ import sys
 from pathlib import Path
 from typing import Optional, Tuple
 
-from pipeline.models import InboxFile, compute_file_hash
+from pipeline.models import InboxFile, compute_binary_hash, compute_file_hash
+
+IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.webp'}
 
 
 def parse_input_file(path: Path) -> Tuple[str, Optional[str]]:
@@ -25,6 +27,8 @@ def parse_input_file(path: Path) -> Tuple[str, Optional[str]]:
 
 def _read_file(path: Path) -> str:
     """Read file content, handling different formats."""
+    if path.suffix.lower() in IMAGE_EXTENSIONS:
+        return f"# {path.stem}\n\nImage file: {path.name}"
     if path.suffix == ".pdf":
         return _read_pdf(path)
     else:
@@ -90,8 +94,14 @@ def discover_inbox_files(inbox_dir: Path) -> list[InboxFile]:
 
     files = []
     for path in inbox_dir.glob("*"):
-        if path.is_file() and path.suffix in (".md", ".txt", ".pdf"):
+        if path.is_file() and path.suffix.lower() in (".md", ".txt", ".pdf", *IMAGE_EXTENSIONS):
             try:
+                if path.suffix.lower() in IMAGE_EXTENSIONS:
+                    raw_bytes = path.read_bytes()
+                    file_hash = compute_binary_hash(raw_bytes)
+                    detected_title = path.stem.replace('-', ' ').replace('_', ' ').title()
+                    files.append(InboxFile(path=path, hash=file_hash, size=path.stat().st_size, detected_title=detected_title))
+                    continue
                 content = _read_file(path)
                 file_hash = compute_file_hash(content)
                 detected_title = _extract_title(content)

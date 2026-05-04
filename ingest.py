@@ -6,6 +6,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.webp'}
+
 from pipeline.config import load_config, setup_wizard
 from pipeline.media import extract_and_rewrite_media
 from pipeline.models import (
@@ -133,6 +135,86 @@ def main():
 
         print(f"📄 Processing {inbox_file.path.name}...")
 
+        if inbox_file.path.suffix.lower() in IMAGE_EXTENSIONS:
+            if args.dry_run:
+                print(f"   Image: {inbox_file.path.name}")
+                continue
+            try:
+                import shutil
+                entry_slug = slugify(inbox_file.detected_title or inbox_file.path.stem)
+                images_dir = Path(config.assets_dir) / "images" / entry_slug
+                images_dir.mkdir(parents=True, exist_ok=True)
+                dest = images_dir / inbox_file.path.name
+                shutil.copy2(inbox_file.path, dest)
+                asset_path = f"assets/images/{entry_slug}/{inbox_file.path.name}"
+
+                img_content = f"![{inbox_file.path.stem}]({asset_path})\n"
+
+                now = datetime.now(timezone.utc)
+                entry = VaultEntry(
+                    title=inbox_file.detected_title or inbox_file.path.stem,
+                    slug=entry_slug,
+                    created=now.strftime("%Y-%m-%d"),
+                    ingested_at=now.isoformat(),
+                    summary=f"Image: {inbox_file.path.name}",
+                    tags=["image", "media"],
+                    category="reference",
+                    difficulty="beginner",
+                    key_concepts=[],
+                    questions_answered=[],
+                    source_file=inbox_file.path.name,
+                    source_hash=inbox_file.hash[:8],
+                    provider=config.provider,
+                    model=config.model,
+                    assets=[],
+                )
+                output_path = write_entry(entry, img_content, output_dir)
+                print(f"   ✅ Image → {output_path}")
+                state.mark_processed(inbox_file.path, inbox_file.hash, str(output_path), entry)
+                state.save(state_file)
+                processed_count += 1
+            except Exception as e:
+                print(f"   ❌ Image error: {e}")
+                error_count += 1
+            continue
+
+        if inbox_file.path.suffix.lower() == ".pdf":
+            if args.dry_run:
+                print(f"   PDF: {inbox_file.path.name}")
+                continue
+            try:
+                import shutil
+                # Always use filename for PDFs — parsed first-page text gives garbage titles
+                title = inbox_file.path.stem.replace('-', ' ').replace('_', ' ').strip(' .')
+                entry_slug = slugify(title)
+                pdf_dir = Path(config.assets_dir) / "pdfs" / entry_slug
+                pdf_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(inbox_file.path, pdf_dir / inbox_file.path.name)
+                pdf_url = f"assets/pdfs/{entry_slug}/{inbox_file.path.name}"
+                pdf_body = (
+                    f'<embed src="/{pdf_url}" type="application/pdf" width="100%" height="720px" />\n\n'
+                    f'[📄 Open PDF]({pdf_url})\n'
+                )
+                now = datetime.now(timezone.utc)
+                entry = VaultEntry(
+                    title=title, slug=entry_slug,
+                    created=now.strftime("%Y-%m-%d"), ingested_at=now.isoformat(),
+                    summary=f"PDF: {inbox_file.path.name}",
+                    tags=["pdf", "document"], category="reference", difficulty="beginner",
+                    key_concepts=[], questions_answered=[],
+                    source_file=inbox_file.path.name, source_hash=inbox_file.hash[:8],
+                    provider=config.provider, model=config.model, assets=[],
+                )
+                output_path = write_entry(entry, pdf_body, output_dir)
+                print(f"   ✅ PDF → {output_path}")
+                state.mark_processed(inbox_file.path, inbox_file.hash, str(output_path), entry)
+                state.save(state_file)
+                processed_count += 1
+            except Exception as e:
+                print(f"   ❌ PDF error: {e}")
+                error_count += 1
+            continue
+
         try:
             raw_content, detected_title = parse_input_file(inbox_file.path)
             raw_content = strip_frontmatter(raw_content)
@@ -153,7 +235,9 @@ def main():
                 entry_slug,
             )
 
-            prompt = ENRICHMENT_USER.format(content=content_with_media)
+            # Cap content for LLM enrichment to avoid context overflow on big PDFs
+            llm_content = content_with_media[:8000]
+            prompt = ENRICHMENT_USER.format(content=llm_content)
             enrichment = call_llm_json(
                 prompt,
                 ENRICHMENT_SYSTEM,
@@ -180,7 +264,7 @@ def main():
             )
 
             output_path = write_entry(entry, content_with_media, output_dir)
-            print(f"   ✅ Wrote to {output_path.relative_to(Path.cwd())}")
+            print(f"   ✅ Wrote to {output_path}")
 
             state.mark_processed(inbox_file.path, inbox_file.hash, str(output_path), entry)
             state.save(state_file)

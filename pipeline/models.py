@@ -185,6 +185,10 @@ def compute_file_hash(content: str) -> str:
     return hashlib.sha256(content.encode()).hexdigest()
 
 
+def compute_binary_hash(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
 def slugify(text: str) -> str:
     """Convert text to a URL-safe slug."""
     import re
