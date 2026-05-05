@@ -116,7 +116,7 @@
         main {
             flex: 1;
             display: grid;
-            grid-template-columns: 1fr 300px;
+            grid-template-columns: 1fr 260px;
             min-height: 0;
             overflow: hidden;
             border: 2px solid var(--border);
@@ -124,7 +124,7 @@
         }
 
         main.sidebar-left {
-            grid-template-columns: 300px 1fr;
+            grid-template-columns: 260px 1fr;
         }
 
         main.sidebar-left .view-container { order: 2; }
@@ -165,7 +165,7 @@
         .chat-messages {
             flex: 1;
             overflow-y: auto;
-            padding: 24px 16% 24px 16%;
+            padding: 24px 8% 24px 8%;
             display: flex;
             flex-direction: column;
             gap: 20px;
@@ -397,7 +397,7 @@
         .msg-content ul, .msg-content ol { margin: 6px 0 6px 22px; }
 
         .chat-input-wrap {
-            padding: 12px 16% 16px 16%;
+            padding: 12px 8% 16px 8%;
             border-top: 1px solid var(--border);
             background: var(--bg);
         }
@@ -977,35 +977,39 @@
         }
 
         .sb-profile-media {
+            display: block;
             width: 100%;
-            height: 200px;
+            aspect-ratio: 16 / 10;
             max-height: 200px;
             overflow: hidden;
             background: #000;
             position: relative;
             border-bottom: 1px solid var(--border);
             box-sizing: border-box;
+            contain: strict;
         }
 
-        .sb-profile-media img,
-        .sb-profile-media video {
-            position: absolute;
-            inset: 0;
+        .sb-profile-media > * {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
             width: 100% !important;
             height: 100% !important;
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: cover;
-            object-position: center;
-            display: block;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            min-width: 0 !important;
+            min-height: 0 !important;
+            object-fit: cover !important;
+            object-position: center !important;
+            display: block !important;
+            box-sizing: border-box !important;
         }
 
         .sb-profile-media .sb-profile-fallback {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            object-fit: unset !important;
         }
 
         .sb-profile-fallback {
@@ -1411,35 +1415,112 @@
             to { transform: translateX(0); opacity: 1; }
         }
 
-        /* Responsive — mobile */
+        /* ===== Responsive — mobile (≤900px) ===== */
+        .mobile-menu-btn { display: none; }
+        .mobile-backdrop { display: none; }
+        .mobile-tabbar { display: none; }
+
         @media (max-width: 900px) {
-            header { padding: 6px 10px; }
-            .wordmark { font-size: 12px; }
+            header { padding: 4px 8px; }
+            .wordmark { font-size: 11px; letter-spacing: 0.15em; }
             .meta { font-size: 9px; }
-            main { grid-template-columns: 1fr; padding: 6px; gap: 6px; }
+
+            main {
+                grid-template-columns: 1fr;
+                padding: 0;
+                margin: 0;
+                gap: 0;
+                border: none;
+                border-top: 1px solid var(--border);
+            }
             main.sidebar-left { grid-template-columns: 1fr; }
+
+            .view-container {
+                border: none;
+                padding-bottom: 56px; /* space for bottom tab bar */
+            }
+
             .sidebar {
                 display: none;
                 position: fixed;
-                top: 32px; bottom: 28px; right: 0; width: 86vw; max-width: 320px;
-                z-index: 90; box-shadow: -4px 0 16px rgba(0,0,0,0.6);
+                top: 0; bottom: 0; right: 0;
+                width: 86vw; max-width: 340px;
+                z-index: 200;
                 background: var(--bg);
+                box-shadow: -4px 0 16px rgba(0,0,0,0.7);
+                animation: slidein 0.18s ease;
             }
             .sidebar.mobile-open { display: flex; flex-direction: column; }
+            @keyframes slidein { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+            .mobile-backdrop {
+                display: none;
+                position: fixed; inset: 0;
+                background: rgba(0,0,0,0.6);
+                z-index: 150;
+            }
+            .mobile-backdrop.active { display: block; }
+
             .mobile-menu-btn {
                 display: flex !important;
-                position: fixed; top: 6px; right: 8px; z-index: 100;
+                position: fixed; top: 4px; right: 6px; z-index: 250;
+                align-items: center; justify-content: center;
                 background: var(--bg2); border: 1px solid var(--accent);
-                color: var(--accent); padding: 4px 10px; font-family: var(--mono);
-                font-size: 14px; cursor: pointer; border-radius: 3px;
+                color: var(--accent); width: 36px; height: 28px;
+                font-family: var(--mono); font-size: 16px; cursor: pointer;
+                border-radius: 3px;
             }
-            footer { font-size: 8px; padding: 4px 6px; gap: 6px; flex-wrap: wrap; }
+
+            /* Bottom tab bar replaces sidebar nav for primary view switching */
+            .mobile-tabbar {
+                display: flex;
+                position: fixed; bottom: 0; left: 0; right: 0;
+                height: 52px;
+                background: var(--bg2);
+                border-top: 1px solid var(--accent);
+                z-index: 180;
+            }
+            .mobile-tabbar button {
+                flex: 1;
+                background: transparent;
+                border: none;
+                color: var(--dim);
+                font-family: var(--mono);
+                font-size: 11px;
+                font-weight: 700;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+                cursor: pointer;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 2px;
+                padding: 4px;
+            }
+            .mobile-tabbar button.active {
+                color: var(--accent);
+                background: rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.08);
+                border-top: 2px solid var(--accent);
+            }
+            .mobile-tabbar .tab-icon { font-size: 18px; line-height: 1; }
+
+            /* Sidebar internal nav-bar hidden on mobile (tabs replace it) */
+            .sidebar .nav-bar { display: none; }
+
+            footer {
+                font-size: 8px; padding: 3px 6px; gap: 6px;
+                bottom: 52px;  /* sits above mobile tab bar */
+            }
             footer .stat-cell.fill { display: none; }
-            .view-container { padding: 6px; }
+            footer .stat-cell.invert:last-child { display: none; }
+
+            .chat-messages { padding: 12px 12px 12px 12px; }
+            .chat-input-wrap { padding: 8px 10px 12px 10px; }
             .doc-panes.mode-split { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
             #chat-input-row { flex-wrap: wrap; }
+            .sb-profile-media { aspect-ratio: 16 / 9; max-height: 160px; }
         }
-        .mobile-menu-btn { display: none; }
     </style>
 </head>
 <body>
@@ -1449,6 +1530,12 @@
     <div class="meta">web-dash v1.1</div>
 </header>
 <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle sidebar">☰</button>
+<div class="mobile-backdrop" id="mobile-backdrop"></div>
+<nav class="mobile-tabbar" id="mobile-tabbar" aria-label="Primary navigation">
+    <button data-view="chat" class="active"><span class="tab-icon">💬</span>Chat</button>
+    <button data-view="vault"><span class="tab-icon">📁</span>Vault</button>
+    <button data-view="config"><span class="tab-icon">⚙</span>Config</button>
+</nav>
 
 <main>
     <!-- View Container -->
@@ -2603,13 +2690,37 @@ class RatVault {
         document.getElementById('btn-theme').addEventListener('click', () => this.cycleTheme());
         document.getElementById('btn-screenshot').addEventListener('click', () => this.takeScreenshot());
 
+        // Mobile sidebar toggle + backdrop
         const mobileBtn = document.getElementById('mobile-menu-btn');
+        const backdrop = document.getElementById('mobile-backdrop');
+        const sb = document.querySelector('.sidebar');
+        const closeMobileSidebar = () => {
+            sb.classList.remove('mobile-open');
+            backdrop.classList.remove('active');
+        };
         if (mobileBtn) {
             mobileBtn.addEventListener('click', () => {
-                const sb = document.querySelector('.sidebar');
-                sb.classList.toggle('mobile-open');
+                const opening = !sb.classList.contains('mobile-open');
+                sb.classList.toggle('mobile-open', opening);
+                backdrop.classList.toggle('active', opening);
             });
         }
+        if (backdrop) backdrop.addEventListener('click', closeMobileSidebar);
+
+        // Mobile bottom tab bar — primary nav
+        document.querySelectorAll('.mobile-tabbar button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const view = btn.dataset.view;
+                document.querySelectorAll('.mobile-tabbar button').forEach(b =>
+                    b.classList.toggle('active', b === btn));
+                if (view === 'config') {
+                    document.getElementById('config-modal').classList.add('active');
+                } else {
+                    this.switchView(view);
+                }
+                closeMobileSidebar();
+            });
+        });
 
         // Apply saved theme on load
         this.applyTheme(localStorage.getItem('rv-theme') || 'green');

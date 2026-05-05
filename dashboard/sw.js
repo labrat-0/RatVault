@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ratvault-v3';
+const CACHE_NAME = 'ratvault-v4';
 const STATIC_ASSETS = [
   '/manifest.json',
   '/favicon.ico',
