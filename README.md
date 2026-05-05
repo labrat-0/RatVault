@@ -164,9 +164,27 @@ python serve.py
 
 Open **http://localhost:8055** in your phone's browser. The dashboard is fully responsive — bottom tab bar with Chat / Vault / Profile / Config.
 
+### 4. Install as a PWA (recommended)
+
+RatVault is a Progressive Web App. Install it to your home screen so it launches like a native app — full-screen, no browser chrome, with its own icon.
+
+**Chrome / Edge / Brave (Android):**
+1. Open `http://localhost:8055`
+2. Tap the **⋮** menu (top-right)
+3. Tap **Install app** (or **Add to Home screen**)
+4. Confirm — RatVault appears on your launcher
+
+**Safari (iOS) — for LAN use from iPhone/iPad:**
+1. Open the dashboard URL
+2. Tap the **Share** button
+3. Tap **Add to Home Screen**
+4. Confirm — RatVault icon appears
+
+After install, launch RatVault from the home-screen icon. Termux must be running with `python serve.py` for the app to load. Tip: keep the Termux session alive in the background using `termux-wake-lock`.
+
 To add files from elsewhere on your phone, use **Profile → Picture** for media or just drag them into `~/RatVault/inbox/` via your file manager (after `termux-setup-storage`).
 
-### 4. Indexing on mobile
+### 5. Indexing on mobile
 
 **No model needed.** Provider stays at `none` (or `ollama` pointed at your home server) and the Python indexer handles everything.
 
@@ -177,7 +195,7 @@ python ingest.py --provider none
 
 You get full deterministic frontmatter (title, slug, tags from your input file), media routed to `assets/`, and clean wiki entries — all on your phone, all offline.
 
-### 5. Cloud chat from mobile
+### 6. Cloud chat from mobile
 
 Want chat? Paste an OpenRouter or OpenAI key in **Config** the same way as desktop. The encryption flow is identical.
 
