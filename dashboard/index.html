@@ -1596,7 +1596,7 @@
                     <button id="chat-attach" title="Attach file or image">📎</button>
                     <textarea id="chat-input" placeholder="Ask your vault..." rows="1"></textarea>
                     <button id="chat-send" title="Send (Enter)">↑</button>
-                    <input type="file" id="chat-file-input" multiple accept="image/*,.pdf,.txt,.md,.csv,.json,.yaml,.yml" style="display:none">
+                    <input type="file" id="chat-file-input" multiple accept="image/*,video/*,.pdf,.txt,.md,.csv,.json,.yaml,.yml,.mp4,.webm,.mov,.mkv" style="display:none">
                 </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:10px;color:var(--dim);">
                     <span>Enter to send · Shift+Enter newline · 📎 image/files</span>
@@ -2067,12 +2067,13 @@ class RatVault {
     async handleChatAttachments(files) {
         for (const f of files) {
             const isImage = f.type.startsWith('image/');
+            const isVideo = f.type.startsWith('video/') || /\.(mp4|webm|mov|mkv)$/i.test(f.name);
             let dataUrl = null;
             let textContent = null;
 
             if (isImage) {
                 dataUrl = await this.fileToDataUrl(f);
-            } else if (f.size < 200000 && /\.(md|txt|json|yaml|yml|csv|log)$/i.test(f.name)) {
+            } else if (!isVideo && f.size < 200000 && /\.(md|txt|json|yaml|yml|csv|log)$/i.test(f.name)) {
                 textContent = await f.text();
             }
 
@@ -2081,6 +2082,7 @@ class RatVault {
                 type: f.type,
                 size: f.size,
                 isImage,
+                isVideo,
                 dataUrl,
                 textContent,
             });
@@ -2131,7 +2133,7 @@ class RatVault {
                 el.appendChild(img);
             } else {
                 const icon = document.createElement('span');
-                icon.textContent = '📄';
+                icon.textContent = att.isVideo ? '🎬' : '📄';
                 el.appendChild(icon);
             }
             const name = document.createElement('span');
