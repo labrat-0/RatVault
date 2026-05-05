@@ -1825,7 +1825,7 @@ Save → goes to inbox/ for re-ingestion."></textarea>
         <span style="color:var(--dim)" id="ft-tokenpct">0%</span>
     </div>
     <div class="stat-cell" id="ft-model">-</div>
-    <div class="stat-cell" id="ft-vault" title="Vault lock status — unlock in Config to activate encrypted API keys">🔒 LOCKED</div>
+    <div class="stat-cell" id="ft-vault" title="Vault lock status — unlock in Config to activate encrypted API keys" style="color:var(--danger);font-weight:700;">🔒 VAULT LOCKED</div>
     <div class="stat-cell invert">&nbsp;ONLINE&nbsp;</div>
 </footer>
 
@@ -1885,6 +1885,7 @@ class RatVault {
         this.loadSettings();
         this.loadStats();
         this.restoreSidebarPos();
+        this.refreshVaultLockUI();
     }
 
     // ==================== FILE VIEWER ====================
@@ -3351,12 +3352,13 @@ class RatVault {
         const cell = document.getElementById('ft-vault');
         if (!cell) return;
         const unlocked = this._verifiedKeys && Object.keys(this._verifiedKeys).length > 0;
+        cell.style.fontWeight = '700';
         if (unlocked) {
-            cell.textContent = '🔓 UNLOCKED';
+            cell.textContent = '🔓 VAULT UNLOCKED';
             cell.style.color = 'var(--accent)';
         } else {
-            cell.textContent = '🔒 LOCKED';
-            cell.style.color = '';
+            cell.textContent = '🔒 VAULT LOCKED';
+            cell.style.color = 'var(--danger)';
         }
     }
 
