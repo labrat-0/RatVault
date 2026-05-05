@@ -1528,6 +1528,14 @@
             /* Sidebar internal nav-bar hidden on mobile (tabs replace it) */
             .sidebar .nav-bar { display: none; }
 
+            /* Mobile-only feature trims */
+            #btn-screenshot { display: none; }
+            #sb-toggle-pos { display: none; }
+
+            /* Profile view (mobile-only) — flat full-width stack of sidebar cards */
+            #profile-view.active { display: block !important; padding: 0 8px; overflow-y: auto; }
+            #profile-view #sidebar-cards { padding: 8px 0; }
+
             footer {
                 font-size: 8px; padding: 3px 6px; gap: 6px;
                 bottom: 52px;  /* sits above mobile tab bar */
@@ -1549,11 +1557,10 @@
     <div class="wordmark"><span class="bracket">[</span> RAT VAULT <span class="bracket">]</span></div>
     <div class="meta">web-dash v1.1</div>
 </header>
-<button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle sidebar">☰</button>
-<div class="mobile-backdrop" id="mobile-backdrop"></div>
 <nav class="mobile-tabbar" id="mobile-tabbar" aria-label="Primary navigation">
     <button data-view="chat" class="active"><span class="tab-icon">💬</span>Chat</button>
     <button data-view="vault"><span class="tab-icon">📁</span>Vault</button>
+    <button data-view="profile"><span class="tab-icon">👤</span>Profile</button>
     <button data-view="config"><span class="tab-icon">⚙</span>Config</button>
 </nav>
 
@@ -1657,6 +1664,10 @@ Save → goes to inbox/ for re-ingestion."></textarea>
             </div>
         </div>
 
+        <div class="view" id="profile-view">
+            <!-- #sidebar-cards is moved into here on mobile via mountSidebarCards() -->
+        </div>
+
         <div class="view" id="config-view">
             <div class="config-page">
                 <h2>// Configuration</h2>
@@ -1729,6 +1740,7 @@ Save → goes to inbox/ for re-ingestion."></textarea>
     <!-- SIDEBAR -->
     <div class="sidebar">
         <div class="sidebar-scroll">
+            <div id="sidebar-cards">
             <!-- Time -->
             <div class="sb-card sb-time">
                 <div class="sb-time-clock" id="sb-time">--:--:--</div>
@@ -1801,6 +1813,7 @@ Save → goes to inbox/ for re-ingestion."></textarea>
                     <button class="toolbtn" id="btn-screenshot" style="flex:1;padding:8px;" title="Save dashboard screenshot">📸 Snap</button>
                 </div>
             </div>
+            </div><!-- /#sidebar-cards -->
         </div>
 
         <!-- Nav Buttons (always visible at bottom) -->
@@ -1886,6 +1899,8 @@ class RatVault {
         this.loadStats();
         this.restoreSidebarPos();
         this.refreshVaultLockUI();
+        this._currentView = 'chat';
+        this.mountSidebarCards();
     }
 
     // ==================== FILE VIEWER ====================
@@ -1978,8 +1993,24 @@ class RatVault {
         document.querySelectorAll('.nav-btn[data-view]').forEach(b => {
             b.classList.toggle('active', b.dataset.view === name);
         });
+        document.querySelectorAll('.mobile-tabbar button').forEach(b => {
+            b.classList.toggle('active', b.dataset.view === name);
+        });
+        this._currentView = name;
         if (name === 'vault') this.loadVaultDocs();
         if (name === 'config') this.loadSettings();
+        this.mountSidebarCards();
+    }
+
+    mountSidebarCards() {
+        const cards = document.getElementById('sidebar-cards');
+        if (!cards) return;
+        const isMobile = window.matchMedia('(max-width: 900px)').matches;
+        const profileView = document.getElementById('profile-view');
+        const sidebarScroll = document.querySelector('.sidebar .sidebar-scroll');
+        if (!profileView || !sidebarScroll) return;
+        const target = (isMobile && this._currentView === 'profile') ? profileView : sidebarScroll;
+        if (cards.parentElement !== target) target.appendChild(cards);
     }
 
     // ==================== CHAT ====================
@@ -2155,6 +2186,22 @@ class RatVault {
 
         const inMemKey = (this._verifiedKeys && settings.provider)
             ? this._verifiedKeys[settings.provider] : null;
+
+        // Lock gate for cloud providers — local providers (ollama, none) bypass.
+        const provider = (settings.provider || 'ollama').toLowerCase();
+        const cloudProviders = ['openai', 'anthropic', 'openrouter'];
+        if (cloudProviders.includes(provider) && !inMemKey) {
+            this.removeTypingIndicator(typingEl);
+            sendBtn.disabled = false;
+            const hasStoredKey = !!localStorage.getItem(`rv-key-${provider}`);
+            if (hasStoredKey) {
+                this.toast(`🔒 Vault locked — unlock in Config to use ${provider}`);
+            } else {
+                this.toast(`No ${provider} key — add one in Config or switch to Ollama`);
+            }
+            this.switchView('config');
+            return;
+        }
 
         try {
             const r = await fetch('/api/chat', {
@@ -2689,23 +2736,6 @@ class RatVault {
         document.getElementById('btn-theme').addEventListener('click', () => this.cycleTheme());
         document.getElementById('btn-screenshot').addEventListener('click', () => this.takeScreenshot());
 
-        // Mobile sidebar toggle + backdrop
-        const mobileBtn = document.getElementById('mobile-menu-btn');
-        const backdrop = document.getElementById('mobile-backdrop');
-        const sb = document.querySelector('.sidebar');
-        const closeMobileSidebar = () => {
-            sb.classList.remove('mobile-open');
-            backdrop.classList.remove('active');
-        };
-        if (mobileBtn) {
-            mobileBtn.addEventListener('click', () => {
-                const opening = !sb.classList.contains('mobile-open');
-                sb.classList.toggle('mobile-open', opening);
-                backdrop.classList.toggle('active', opening);
-            });
-        }
-        if (backdrop) backdrop.addEventListener('click', closeMobileSidebar);
-
         // Mobile bottom tab bar — primary nav
         document.querySelectorAll('.mobile-tabbar button').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -2713,9 +2743,11 @@ class RatVault {
                 document.querySelectorAll('.mobile-tabbar button').forEach(b =>
                     b.classList.toggle('active', b === btn));
                 this.switchView(view);
-                closeMobileSidebar();
             });
         });
+
+        // Reflow #sidebar-cards between desktop sidebar and mobile #profile-view on resize
+        window.addEventListener('resize', () => this.mountSidebarCards());
 
         // Apply saved theme on load
         this.applyTheme(localStorage.getItem('rv-theme') || 'green');

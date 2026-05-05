@@ -212,6 +212,15 @@ LLM enrichment (richer `summary`, `tags`, `category`, `key_concepts`, `questions
 
 Set `provider: none` in `config.yaml` (or pass `--provider none`) to skip LLM enrichment entirely.
 
+### Vault lock model
+
+The web dashboard's master password protects **stored cloud-provider API keys** at rest in browser localStorage. It is NOT an entry gate.
+
+- Local providers (`ollama`, `none`) work without ever setting a password.
+- Cloud providers (`openai`, `anthropic`, `openrouter`) require a stored key. The key is encrypted with the master password (AES-GCM) and only decrypted into session memory after Unlock.
+- Footer shows red `🔒 VAULT LOCKED` whenever any encrypted key on file is currently inaccessible. Switching to a cloud provider while locked redirects the user to Config with a toast.
+- Forgotten password → `⚠ Reset Keys` in Config wipes all encrypted blobs. The user re-enters keys with a new master password.
+
 Supported file types in `inbox/`: `.md`, `.txt`, `.pdf`, images (`.png .jpg .jpeg .gif .webp`), videos (`.mp4 .webm .mov .mkv`). Media files use a no-LLM path that copies to `assets/<type>/<slug>/` and writes a Notes stub.
 
 ## Next Steps

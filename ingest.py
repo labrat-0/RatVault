@@ -115,6 +115,22 @@ def _build_deterministic_entry(
     )
 
 
+def _archive_inbox_file(path: Path) -> None:
+    """Move successfully indexed source out of inbox/ into inbox/.archive/.
+
+    Keeps the raw source as an artifact while removing it from the active inbox
+    listing so the UI shows only un-indexed files.
+    """
+    import shutil
+    archive_dir = path.parent / ".archive"
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    target = archive_dir / path.name
+    if target.exists():
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        target = archive_dir / f"{path.stem}_{ts}{path.suffix}"
+    shutil.move(str(path), str(target))
+
+
 def _overlay_llm_enrichment(entry: VaultEntry, enrichment: dict) -> VaultEntry:
     """Apply LLM enrichment over deterministic baseline. LLM never overwrites non-empty user fields."""
     data = entry.model_dump()
@@ -286,6 +302,7 @@ def main():
                 print(f"   ✅ Image → {output_path}")
                 state.mark_processed(inbox_file.path, inbox_file.hash, str(output_path), entry)
                 state.save(state_file)
+                _archive_inbox_file(inbox_file.path)
                 processed_count += 1
             except Exception as e:
                 print(f"   ❌ Image error: {e}")
@@ -332,6 +349,7 @@ def main():
                 print(f"   ✅ Video → {output_path}")
                 state.mark_processed(inbox_file.path, inbox_file.hash, str(output_path), entry)
                 state.save(state_file)
+                _archive_inbox_file(inbox_file.path)
                 processed_count += 1
             except Exception as e:
                 print(f"   ❌ Video error: {e}")
@@ -369,6 +387,7 @@ def main():
                 print(f"   ✅ PDF → {output_path}")
                 state.mark_processed(inbox_file.path, inbox_file.hash, str(output_path), entry)
                 state.save(state_file)
+                _archive_inbox_file(inbox_file.path)
                 processed_count += 1
             except Exception as e:
                 print(f"   ❌ PDF error: {e}")
@@ -425,6 +444,7 @@ def main():
 
             state.mark_processed(inbox_file.path, inbox_file.hash, str(output_path), entry)
             state.save(state_file)
+            _archive_inbox_file(inbox_file.path)
 
             processed_count += 1
 
