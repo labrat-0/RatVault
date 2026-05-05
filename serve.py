@@ -391,6 +391,7 @@ title: "{req.title}"
 slug: "{safe_slug}"
 created: "{now}"
 source: "edited-from-vault"
+_prev_slug: "{safe_slug}"
 ---
 
 {req.content}"""

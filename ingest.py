@@ -442,6 +442,15 @@ def main():
             output_path = write_entry(entry, content_with_media, output_dir)
             print(f"   ✅ Wrote to {output_path}")
 
+            # Title-rename cleanup: if frontmatter declared a previous slug
+            # different from the new slug, remove the stale Notes file.
+            prev_slug = inbox_frontmatter.get("_prev_slug")
+            if prev_slug and prev_slug != entry.slug:
+                stale = output_dir / f"{prev_slug}.md"
+                if stale.exists() and stale.resolve() != output_path.resolve():
+                    stale.unlink()
+                    print(f"   🗑️  Removed stale {stale}")
+
             state.mark_processed(inbox_file.path, inbox_file.hash, str(output_path), entry)
             state.save(state_file)
             _archive_inbox_file(inbox_file.path)
