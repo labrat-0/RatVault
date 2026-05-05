@@ -29,11 +29,6 @@ def write_entry(
     filename = f"{entry.slug}.md"
     output_path = output_dir / filename
 
-    if output_path.exists():
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-        filename = f"{entry.slug}_{timestamp}.md"
-        output_path = output_dir / filename
-
     frontmatter_dict = {
         "title": entry.title,
         "slug": entry.slug,

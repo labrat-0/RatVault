@@ -25,7 +25,7 @@ Notes/
 ## Querying Documents
 
 1. Start the dashboard: `python serve.py`
-2. Open `http://localhost:8000` in your browser
+2. Open `http://localhost:8055` in your browser
 3. Go to **Chat**
 4. Select your LLM provider in **Config**
 5. Ask questions - RatVault will find relevant documents and include them as context

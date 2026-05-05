@@ -127,7 +127,7 @@ class IngestState(BaseModel):
 class ProviderConfig(BaseModel):
     """Configuration for a specific LLM provider."""
 
-    provider: Literal["openai", "anthropic", "ollama", "openrouter"]
+    provider: Literal["openai", "anthropic", "ollama", "openrouter", "none"]
     model: str
     api_key: Optional[str] = None
     base_url: Optional[str] = None
@@ -138,7 +138,7 @@ class ProviderConfig(BaseModel):
 class VaultConfig(BaseModel):
     """Complete vault configuration."""
 
-    provider: Literal["openai", "anthropic", "ollama", "openrouter"] = "ollama"
+    provider: Literal["openai", "anthropic", "ollama", "openrouter", "none"] = "ollama"
     model: str = "llama3.2"
     openai_api_key: str = ""
     anthropic_api_key: str = ""

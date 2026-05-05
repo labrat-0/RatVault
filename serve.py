@@ -39,11 +39,6 @@ class DocumentRequest(BaseModel):
     content: str
 
 
-class DocumentUpdateRequest(BaseModel):
-    content: str
-    title: Optional[str] = None
-
-
 def load_vault_entries() -> list[dict]:
     """Load all vault entries and parse frontmatter."""
     notes_dir = Path("Notes")
@@ -617,86 +612,6 @@ def _call_vision_llm(message: str, system: str, vault_config, images: list, hist
             # If model doesn't support vision, OpenRouter returns 400 — fall through
 
     return None
-
-
-@app.post("/api/entries")
-async def create_document(req: DocumentRequest):
-    """Create a new document in Notes/."""
-    try:
-        notes_dir = Path("Notes")
-        notes_dir.mkdir(parents=True, exist_ok=True)
-
-        slug = req.slug.lower().replace(" ", "-").replace("/", "-")
-        filepath = notes_dir / f"{slug}.md"
-
-        if filepath.exists():
-            raise HTTPException(status_code=409, detail="Document already exists")
-
-        # Build frontmatter
-        now = datetime.now().isoformat().split('T')[0]
-        frontmatter = f"""---
-title: "{req.title}"
-slug: "{slug}"
-created: "{now}"
-tags: []
----
-
-{req.content}"""
-
-        filepath.write_text(frontmatter, encoding="utf-8")
-
-        return {
-            "success": True,
-            "slug": slug,
-            "title": req.title,
-            "created": now
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.put("/api/entries/{slug}")
-async def update_document(slug: str, req: DocumentUpdateRequest):
-    """Update existing document. Title change triggers slug rename + file move."""
-    try:
-        notes_dir = Path("Notes")
-        filepath = notes_dir / f"{slug}.md"
-
-        if not filepath.exists():
-            raise HTTPException(status_code=404, detail="Document not found")
-
-        existing = filepath.read_text(encoding="utf-8")
-        entry = parse_frontmatter(existing)
-        if not entry:
-            raise HTTPException(status_code=400, detail="Invalid document format")
-
-        new_title = (req.title or entry.get("title", "Untitled")).strip()
-        new_slug = re.sub(r"[^a-z0-9]+", "-", new_title.lower()).strip("-") or slug
-        new_path = notes_dir / f"{new_slug}.md"
-
-        if new_slug != slug and new_path.exists():
-            raise HTTPException(status_code=409, detail=f"Slug '{new_slug}' already exists")
-
-        entry["title"] = new_title
-        entry["slug"] = new_slug
-        # Preserve frontmatter — dump full dict, not subset
-        frontmatter_yaml = yaml.dump(entry, default_flow_style=False, allow_unicode=True, sort_keys=True)
-        markdown = f"---\n{frontmatter_yaml}---\n\n{req.content}"
-
-        new_path.write_text(markdown, encoding="utf-8")
-        if new_slug != slug:
-            filepath.unlink()
-
-        return {
-            "success": True,
-            "slug": new_slug,
-            "renamed": new_slug != slug,
-            "updated_at": datetime.now().isoformat()
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/profile/current")

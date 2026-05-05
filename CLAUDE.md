@@ -198,11 +198,21 @@ RatVault/
 ## Configuration
 
 See `config.yaml` for:
-- `provider`: ollama | openai | anthropic | openrouter
+- `provider`: ollama | openai | anthropic | openrouter | **none**
 - `model`: Model name/ID (can fetch available models in UI)
 - `temperature`: 0.1-0.9 (lower = consistency, higher = creativity)
 - `ollama_base_url`: http://localhost:11434 (if using local)
 - API keys: Stored in config.yaml (see .env.example)
+
+### Indexing model dependency
+
+Indexing is deterministic Python by default — `inbox/` → `Notes/` works without any LLM. The pipeline parses frontmatter, slugifies, copies media, builds a baseline `VaultEntry`, and writes Notes.
+
+LLM enrichment (richer `summary`, `tags`, `category`, `key_concepts`, `questions_answered`) runs as an **overlay** when a usable provider is configured. If the LLM call fails, the deterministic baseline is still written — files never get stuck in `inbox/` due to a model error.
+
+Set `provider: none` in `config.yaml` (or pass `--provider none`) to skip LLM enrichment entirely.
+
+Supported file types in `inbox/`: `.md`, `.txt`, `.pdf`, images (`.png .jpg .jpeg .gif .webp`), videos (`.mp4 .webm .mov .mkv`). Media files use a no-LLM path that copies to `assets/<type>/<slug>/` and writes a Notes stub.
 
 ## Next Steps
 

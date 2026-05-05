@@ -999,7 +999,7 @@
             max-height: 100% !important;
             min-width: 0 !important;
             min-height: 0 !important;
-            object-fit: cover !important;
+            object-fit: contain !important;
             object-position: center !important;
             display: block !important;
             box-sizing: border-box !important;
@@ -1156,6 +1156,26 @@
             width: 100%;
             max-height: 90vh;
             overflow-y: auto;
+        }
+
+        .config-page {
+            padding: 20px 24px;
+            max-width: 640px;
+            margin: 0 auto;
+            overflow-y: auto;
+            height: 100%;
+            box-sizing: border-box;
+        }
+
+        .config-page h2 {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--dim2);
+            padding-bottom: 10px;
+            color: var(--accent);
         }
 
         .modal h2 {
@@ -1637,6 +1657,73 @@ Save → goes to inbox/ for re-ingestion."></textarea>
             </div>
         </div>
 
+        <div class="view" id="config-view">
+            <div class="config-page">
+                <h2>// Configuration</h2>
+
+                <div class="field-group">
+                    <label>Master Password (encrypts API keys)</label>
+                    <div class="field-row">
+                        <input type="password" id="cfg-master-pw" class="grow" placeholder="set master password...">
+                        <button class="btn" id="cfg-unlock">Unlock</button>
+                    </div>
+                    <div class="field-hint" id="cfg-master-hint">Keys encrypted with AES-GCM. Never stored plain text.</div>
+                </div>
+
+                <div class="field-group">
+                    <label>Provider</label>
+                    <select id="cfg-provider">
+                        <option value="ollama">Ollama (Local)</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="anthropic">Anthropic</option>
+                        <option value="openrouter">OpenRouter</option>
+                        <option value="none">None (Python-only indexing)</option>
+                    </select>
+                    <div class="field-hint" id="cfg-provider-hint">Ollama runs locally — no API key needed</div>
+                </div>
+
+                <div class="field-group">
+                    <label>Model</label>
+                    <div class="field-row">
+                        <select id="cfg-model" class="grow"></select>
+                        <button class="btn" id="cfg-fetch">↻ Fetch</button>
+                    </div>
+                    <div class="field-hint" id="cfg-fetch-hint"></div>
+                </div>
+
+                <div class="field-group">
+                    <label>API Keys</label>
+                    <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
+                        <div class="field-row" style="align-items:center;">
+                            <span style="font-size:10px;color:var(--dim);width:90px;flex-shrink:0;text-transform:uppercase;letter-spacing:0.06em;">OpenAI</span>
+                            <input type="password" id="cfg-key-openai" placeholder="sk-proj-..." autocomplete="off" style="flex:1;font-size:11px;">
+                            <span id="cfg-key-status-openai" style="font-size:10px;color:var(--accent);flex-shrink:0;display:none;">🔒</span>
+                        </div>
+                        <div class="field-row" style="align-items:center;">
+                            <span style="font-size:10px;color:var(--dim);width:90px;flex-shrink:0;text-transform:uppercase;letter-spacing:0.06em;">Anthropic</span>
+                            <input type="password" id="cfg-key-anthropic" placeholder="sk-ant-..." autocomplete="off" style="flex:1;font-size:11px;">
+                            <span id="cfg-key-status-anthropic" style="font-size:10px;color:var(--accent);flex-shrink:0;display:none;">🔒</span>
+                        </div>
+                        <div class="field-row" style="align-items:center;">
+                            <span style="font-size:10px;color:var(--dim);width:90px;flex-shrink:0;text-transform:uppercase;letter-spacing:0.06em;">OpenRouter</span>
+                            <input type="password" id="cfg-key-openrouter" placeholder="sk-or-v1-..." autocomplete="off" style="flex:1;font-size:11px;">
+                            <span id="cfg-key-status-openrouter" style="font-size:10px;color:var(--accent);flex-shrink:0;display:none;">🔒</span>
+                        </div>
+                    </div>
+                    <div class="field-hint" style="margin-top:6px;">Leave blank to keep existing key. Encrypted with master password above.</div>
+                    <div class="field-hint" id="cfg-key-hint"></div>
+                </div>
+
+                <div class="status-msg" id="cfg-status"></div>
+
+                <div class="modal-actions">
+                    <button class="btn" id="cfg-reset" style="border-color:rgba(255,68,68,0.4);color:var(--danger);margin-right:auto">⚠ Reset Keys</button>
+                    <button class="btn" id="cfg-cancel">Cancel</button>
+                    <button class="btn primary" id="cfg-save">Save & Apply</button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- SIDEBAR -->
@@ -1720,7 +1807,7 @@ Save → goes to inbox/ for re-ingestion."></textarea>
         <div class="nav-bar">
             <button class="nav-btn active" data-view="chat"><span class="nav-btn-icon">▸</span>Chat</button>
             <button class="nav-btn" data-view="vault"><span class="nav-btn-icon">▸</span>Vault</button>
-            <button class="nav-btn" id="nav-config"><span class="nav-btn-icon">▸</span>Config</button>
+            <button class="nav-btn" id="nav-config" data-view="config"><span class="nav-btn-icon">▸</span>Config</button>
         </div>
     </div>
 </main>
@@ -1738,75 +1825,11 @@ Save → goes to inbox/ for re-ingestion."></textarea>
         <span style="color:var(--dim)" id="ft-tokenpct">0%</span>
     </div>
     <div class="stat-cell" id="ft-model">-</div>
+    <div class="stat-cell" id="ft-vault" title="Vault lock status — unlock in Config to activate encrypted API keys">🔒 LOCKED</div>
     <div class="stat-cell invert">&nbsp;ONLINE&nbsp;</div>
 </footer>
 
-<!-- Config Modal -->
-<div class="modal-overlay" id="config-modal">
-    <div class="modal">
-        <h2>// Configuration</h2>
-
-        <div class="field-group">
-            <label>Master Password (encrypts API keys)</label>
-            <div class="field-row">
-                <input type="password" id="cfg-master-pw" class="grow" placeholder="set master password...">
-                <button class="btn" id="cfg-unlock">Unlock</button>
-            </div>
-            <div class="field-hint" id="cfg-master-hint">Keys encrypted with AES-GCM. Never stored plain text.</div>
-        </div>
-
-        <div class="field-group">
-            <label>Provider</label>
-            <select id="cfg-provider">
-                <option value="ollama">Ollama (Local)</option>
-                <option value="openai">OpenAI</option>
-                <option value="anthropic">Anthropic</option>
-                <option value="openrouter">OpenRouter</option>
-            </select>
-            <div class="field-hint" id="cfg-provider-hint">Ollama runs locally — no API key needed</div>
-        </div>
-
-        <div class="field-group">
-            <label>Model</label>
-            <div class="field-row">
-                <select id="cfg-model" class="grow"></select>
-                <button class="btn" id="cfg-fetch">↻ Fetch</button>
-            </div>
-            <div class="field-hint" id="cfg-fetch-hint"></div>
-        </div>
-
-        <div class="field-group">
-            <label>API Keys</label>
-            <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
-                <div class="field-row" style="align-items:center;">
-                    <span style="font-size:10px;color:var(--dim);width:90px;flex-shrink:0;text-transform:uppercase;letter-spacing:0.06em;">OpenAI</span>
-                    <input type="password" id="cfg-key-openai" placeholder="sk-proj-..." autocomplete="off" style="flex:1;font-size:11px;">
-                    <span id="cfg-key-status-openai" style="font-size:10px;color:var(--accent);flex-shrink:0;display:none;">🔒</span>
-                </div>
-                <div class="field-row" style="align-items:center;">
-                    <span style="font-size:10px;color:var(--dim);width:90px;flex-shrink:0;text-transform:uppercase;letter-spacing:0.06em;">Anthropic</span>
-                    <input type="password" id="cfg-key-anthropic" placeholder="sk-ant-..." autocomplete="off" style="flex:1;font-size:11px;">
-                    <span id="cfg-key-status-anthropic" style="font-size:10px;color:var(--accent);flex-shrink:0;display:none;">🔒</span>
-                </div>
-                <div class="field-row" style="align-items:center;">
-                    <span style="font-size:10px;color:var(--dim);width:90px;flex-shrink:0;text-transform:uppercase;letter-spacing:0.06em;">OpenRouter</span>
-                    <input type="password" id="cfg-key-openrouter" placeholder="sk-or-v1-..." autocomplete="off" style="flex:1;font-size:11px;">
-                    <span id="cfg-key-status-openrouter" style="font-size:10px;color:var(--accent);flex-shrink:0;display:none;">🔒</span>
-                </div>
-            </div>
-            <div class="field-hint" style="margin-top:6px;">Leave blank to keep existing key. Encrypted with master password above.</div>
-            <div class="field-hint" id="cfg-key-hint"></div>
-        </div>
-
-        <div class="status-msg" id="cfg-status"></div>
-
-        <div class="modal-actions">
-            <button class="btn" id="cfg-reset" style="border-color:rgba(255,68,68,0.4);color:var(--danger);margin-right:auto">⚠ Reset Keys</button>
-            <button class="btn" id="cfg-cancel">Cancel</button>
-            <button class="btn primary" id="cfg-save">Save & Apply</button>
-        </div>
-    </div>
-</div>
+<!-- Config view moved into .view-container as #config-view -->
 
 <!-- File Viewer (PDFs, images, video) -->
 <div class="viewer-overlay" id="viewer-overlay">
@@ -1943,8 +1966,7 @@ class RatVault {
     initNav() {
         document.querySelectorAll('.nav-btn').forEach(b => {
             b.addEventListener('click', e => {
-                if (b.id === 'nav-config') return this.openConfig();
-                this.switchView(b.dataset.view);
+                if (b.dataset.view) this.switchView(b.dataset.view);
             });
         });
     }
@@ -1956,6 +1978,7 @@ class RatVault {
             b.classList.toggle('active', b.dataset.view === name);
         });
         if (name === 'vault') this.loadVaultDocs();
+        if (name === 'config') this.loadSettings();
     }
 
     // ==================== CHAT ====================
@@ -2598,46 +2621,21 @@ class RatVault {
         const slug = this.currentDoc.slug;
 
         try {
-            // Save to inbox/ for re-ingestion (LLM will re-enrich on next reindex)
             const r = await fetch('/api/inbox/save-edit', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({title, slug, content}),
             });
-            if (!r.ok) throw new Error('Save to inbox failed');
-
-            if (!this.currentDoc.isNew) {
-                // Update existing Notes/ entry — server handles slug rename if title changed
-                const pr = await fetch(`/api/entries/${slug}`, {
-                    method: 'PUT',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({content, title}),
-                });
-                if (!pr.ok) {
-                    const err = await pr.text();
-                    throw new Error(`Update failed: ${err.slice(0,120)}`);
-                }
-                const result = await pr.json();
-                if (result.slug && result.slug !== slug) {
-                    this.currentDoc.slug = result.slug;
-                }
-                this.currentDoc.title = title;
-            } else {
-                const cr = await fetch('/api/entries', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({title, slug, content}),
-                });
-                if (!cr.ok) {
-                    const err = await cr.text();
-                    throw new Error(`Create failed: ${err.slice(0,120)}`);
-                }
-                this.currentDoc.isNew = false;
+            if (!r.ok) {
+                const err = await r.text();
+                throw new Error(`Save failed: ${err.slice(0,120)}`);
             }
 
-            this.toast('✓ Saved (Notes/ updated, inbox/ queued for reindex)');
+            this.currentDoc.title = title;
+            this.currentDoc.isNew = false;
+
+            this.toast('✓ Saved to inbox/ — click Reindex to publish');
             this.loadStats();
-            this.loadNotesDocs();
             this.loadInboxDocs();
             this.switchVaultTab('inbox');
         } catch (e) {
@@ -2713,11 +2711,7 @@ class RatVault {
                 const view = btn.dataset.view;
                 document.querySelectorAll('.mobile-tabbar button').forEach(b =>
                     b.classList.toggle('active', b === btn));
-                if (view === 'config') {
-                    document.getElementById('config-modal').classList.add('active');
-                } else {
-                    this.switchView(view);
-                }
+                this.switchView(view);
                 closeMobileSidebar();
             });
         });
@@ -3199,8 +3193,7 @@ class RatVault {
     };
 
     openConfig() {
-        document.getElementById('config-modal').classList.add('active');
-        this.loadSettings();
+        this.switchView('config');
     }
 
     closeConfig() {
@@ -3211,7 +3204,7 @@ class RatVault {
         });
         document.getElementById('cfg-master-pw').value = '';
         document.getElementById('cfg-status').textContent = '';
-        document.getElementById('config-modal').classList.remove('active');
+        this.switchView('chat');
     }
 
     loadSettings() {
@@ -3350,6 +3343,20 @@ class RatVault {
             document.getElementById('cfg-status').textContent = '✓ Keys active — never displayed.';
         } else {
             document.getElementById('cfg-status').textContent = 'No stored keys found. Enter keys above and save.';
+        }
+        this.refreshVaultLockUI();
+    }
+
+    refreshVaultLockUI() {
+        const cell = document.getElementById('ft-vault');
+        if (!cell) return;
+        const unlocked = this._verifiedKeys && Object.keys(this._verifiedKeys).length > 0;
+        if (unlocked) {
+            cell.textContent = '🔓 UNLOCKED';
+            cell.style.color = 'var(--accent)';
+        } else {
+            cell.textContent = '🔒 LOCKED';
+            cell.style.color = '';
         }
     }
 
