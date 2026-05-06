@@ -405,7 +405,10 @@ def main():
                 print()
                 continue
 
-            title = detected_title or inbox_frontmatter.get("title") or inbox_file.path.stem
+            # Prefer frontmatter title (set by save-edit when user renames in UI)
+            # over the body's H1 — otherwise the H1 wins and renames silently revert.
+            fm_title = inbox_frontmatter.get("title")
+            title = fm_title or detected_title or inbox_file.path.stem
             entry_slug = slugify(title)
 
             assets_dir = Path(config.assets_dir)

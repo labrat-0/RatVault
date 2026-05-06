@@ -125,6 +125,14 @@ The footer shows `🔒 VAULT LOCKED` (red) when keys are encrypted but not unloc
 
 Run the full RatVault pipeline on Android. No root.
 
+<table>
+  <tr>
+    <td align="center" width="33%"><img src="assets/images/screenshots/mobile-chat.jpg" width="240" alt="RatVault mobile — Chat"><br><sub><b>Chat</b> — local or cloud LLM, vault-aware</sub></td>
+    <td align="center" width="33%"><img src="assets/images/screenshots/mobile-vault.jpg" width="240" alt="RatVault mobile — Vault"><br><sub><b>Vault</b> — wiki + inbox, tagged notes</sub></td>
+    <td align="center" width="33%"><img src="assets/images/screenshots/mobile-profile.jpg" width="240" alt="RatVault mobile — Profile"><br><sub><b>Profile</b> — stats, activity, reindex</sub></td>
+  </tr>
+</table>
+
 ### Requirements
 
 - **[Termux](https://f-droid.org/en/packages/com.termux/)** — install from F-Droid (the Play Store version is outdated)
