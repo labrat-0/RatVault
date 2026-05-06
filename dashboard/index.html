@@ -29,9 +29,9 @@
         }
 
         /* Theme variants — switched by [data-theme] attribute on <html> */
-        html[data-theme="cyan"] {
-            --accent: #00f0ff; --accent-r: 0; --accent-g: 240; --accent-b: 255;
-            --accent-dim: rgba(0,240,255,0.15); --accent-glow: rgba(0,240,255,0.35);
+        html[data-theme="purple"] {
+            --accent: #b46cff; --accent-r: 180; --accent-g: 108; --accent-b: 255;
+            --accent-dim: rgba(180,108,255,0.15); --accent-glow: rgba(180,108,255,0.35);
         }
         html[data-theme="blue"] {
             --accent: #4dccff; --accent-r: 77; --accent-g: 204; --accent-b: 255;
@@ -1523,7 +1523,10 @@
                 background: rgba(var(--accent-r), var(--accent-g), var(--accent-b), 0.08);
                 border-top: 2px solid var(--accent);
             }
-            .mobile-tabbar .tab-icon { font-size: 18px; line-height: 1; }
+            .mobile-tabbar .tab-icon { font-size: 22px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+            .mobile-tabbar .tab-icon svg { display: block; }
+            .mobile-tabbar .tab-label { display: none; }
+            .mobile-tabbar button { gap: 0; padding: 6px 4px; }
 
             /* Sidebar internal nav-bar hidden on mobile (tabs replace it) */
             .sidebar .nav-bar { display: none; }
@@ -1558,10 +1561,27 @@
     <div class="meta">web-dash v1.1</div>
 </header>
 <nav class="mobile-tabbar" id="mobile-tabbar" aria-label="Primary navigation">
-    <button data-view="chat" class="active"><span class="tab-icon">💬</span>Chat</button>
-    <button data-view="vault"><span class="tab-icon">📁</span>Vault</button>
-    <button data-view="profile"><span class="tab-icon">👤</span>Profile</button>
-    <button data-view="config"><span class="tab-icon">⚙</span>Config</button>
+    <button data-view="chat" class="active" aria-label="Chat">
+        <span class="tab-icon">💬</span><span class="tab-label">Chat</span>
+    </button>
+    <button data-view="vault" aria-label="Vault">
+        <span class="tab-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="16" rx="1.5"/>
+                <circle cx="11" cy="12" r="3.5"/>
+                <path d="M11 8.5v-1M11 15.5v1M7.5 12h-1M14.5 12h1"/>
+                <path d="M19 8v8"/>
+            </svg>
+        </span>
+        <span class="tab-label">Vault</span>
+    </button>
+    <button data-view="profile" aria-label="Profile">
+        <span class="tab-icon"><img src="icons/profile-rat.png" alt="" width="24" height="24" style="display:block;object-fit:contain;"></span>
+        <span class="tab-label">Profile</span>
+    </button>
+    <button data-view="config" aria-label="Config">
+        <span class="tab-icon">⚙</span><span class="tab-label">Config</span>
+    </button>
 </nav>
 
 <main>
@@ -2757,7 +2777,7 @@ class RatVault {
 
     THEMES = [
         {id: 'green',  name: 'Green'},
-        {id: 'cyan',   name: 'Cyan'},
+        {id: 'purple', name: 'Purple'},
         {id: 'blue',   name: 'Blue'},
         {id: 'yellow', name: 'Yellow'},
         {id: 'red',    name: 'Red'},
@@ -2879,13 +2899,10 @@ class RatVault {
                 status.textContent = '✗ ' + (data.stderr || 'Failed').split('\n')[0].slice(0, 60);
                 this.toast('✗ Reindex failed');
             }
+            // Silently update footer counts. Do NOT switch view, reload
+            // Notes/Inbox lists, or reopen the active doc — user may be
+            // somewhere else in the vault and we shouldn't yank them away.
             this.loadStats();
-            this.loadNotesDocs();
-            this.loadInboxDocs();
-            // Refresh open doc preview if user is viewing one
-            if (this.currentDoc && !this.currentDoc.isNew) {
-                this.openDoc(this.currentDoc.slug);
-            }
         } catch (e) {
             status.textContent = '✗ ' + e.message;
         } finally {
