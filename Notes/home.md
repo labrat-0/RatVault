@@ -88,7 +88,7 @@ Every page has:
 - **Relationships** — links to related concepts
 - **Sources** — where the info came from
 
-See [`README-STRUCTURE.md`](README-STRUCTURE) for the full guide.
+See [`readme-structure.md`](README-STRUCTURE) for the full guide.
 
 ---
 
@@ -119,7 +119,7 @@ Manage providers and models in the **Config** tab of the dashboard, or in `confi
 
 - 🌐 **Dashboard:** http://localhost:8055
 - 🏗 **Architecture:** see `CLAUDE.md` in the repo root
-- 📝 **Page template:** `README-STRUCTURE.md`
+- 📝 **Page template:** `readme-structure.md`
 - 💻 **Source:** [github.com/labrat-0/RatVault](https://github.com/labrat-0/RatVault)
 
 ---
