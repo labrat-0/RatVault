@@ -1,5 +1,8 @@
-# GSD planning artifacts
+# Local AI-assisted dev tooling and planning — never push to public repo
 .planning/
+.claude/
+docs/superpowers/
+plans/
 
 # Configuration and runtime
 .env
