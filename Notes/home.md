@@ -2,91 +2,126 @@
 title: "RatVault Home"
 slug: "home"
 created: "2026-05-02"
-ingested_at: "2026-05-02T12:00:00Z"
+ingested_at: "2026-05-05T17:20:00Z"
 category: "reference"
 type: "reference"
-tags: ["index", "overview"]
-related: []
+tags: ["index", "overview", "wiki", "home"]
+related: ["getting-started", "ai-llm-docs", "python-cheatsheet", "bash-cheatsheet"]
 ---
 
-# RatVault — Your Persistent Knowledge Vault
+# 🐀 RatVault — Your Persistent Knowledge Vault
 
-A personal wiki that grows smarter with every source you add. Following [Andrej Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
+![Local](https://img.shields.io/badge/Local-First-3da26f?style=flat-square)
+![Python](https://img.shields.io/badge/Python-3.10%2B-3da26f?style=flat-square)
+![LLM](https://img.shields.io/badge/LLM-Optional-666?style=flat-square)
+![Obsidian](https://img.shields.io/badge/Obsidian-Compatible-666?style=flat-square)
+![Mobile](https://img.shields.io/badge/Mobile-Termux-3da26f?style=flat-square)
+![License](https://img.shields.io/badge/License-MIT-3da26f?style=flat-square)
 
-## How It Works
+> A personal wiki that grows smarter with every source you add.
+> Inspired by [Andrej Karpathy's "LLM Wiki" pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) — a **persistent, compounding knowledge artifact**, not a re-derived RAG result.
 
-**Three layers**:
-1. **Raw Sources** (`inbox/`) — Your notes, articles, research
-2. **The Wiki** (`Notes/`) — AI-generated, interconnected knowledge base
-3. **The Schema** — Guidelines and configuration
+---
 
-**Three operations**:
-- **Ingest**: Process new sources → integrate into wiki with cross-references
-- **Query**: Chat to search the wiki and get context-aware answers
-- **Lint**: Check for orphaned pages and broken links (coming soon)
+## ⚡ How It Works
 
-## Get Started
+```
+inbox/  →  Python indexing (always)  →  Notes/
+            ▲
+            └── (optional) LLM enrichment overlay
+```
 
-1. Add `.md` files to `inbox/`
-2. Run: `python ingest.py`
-3. Chat with your vault in the web dashboard
-4. Update `Notes/` pages directly for manual refinement
+**Three layers**
 
-## Wiki Conventions
+| Layer | What | Purpose |
+|---|---|---|
+| `inbox/` | Raw sources you drop in | Markdown, text, PDFs, images, videos |
+| `Notes/` | LLM-enriched wiki | One markdown file per entity/concept |
+| `config.yaml` | Provider + model | Schema layer |
+
+**Three operations**
+
+| Op | What it does |
+|---|---|
+| **Ingest** | Process new sources → integrate into wiki with cross-references |
+| **Query** | Chat over the wiki and get context-aware answers |
+| **Lint** | Check for orphaned pages and broken links *(coming soon)* |
+
+---
+
+## 🚀 Get Started
+
+```bash
+# 1. Drop a source
+echo "# My Research" > inbox/my-research.md
+
+# 2. Index it (no LLM required)
+python ingest.py --provider none
+
+# 3. Open dashboard
+python serve.py
+# → http://localhost:8055
+```
+
+That's it. No API key, no internet, no model. Add an LLM later for richer summaries — never required.
+
+---
+
+## 📚 Featured Pages
+
+| Page | Tags |
+|---|---|
+| [AI & LLM Documentation Hub](ai-llm-docs) | `ai` `llm` `docs` |
+| [Getting Started Guide](getting-started) | `setup` `howto` |
+| [Python Cheatsheet](python-cheatsheet) | `python` `programming` |
+| [Bash Cheatsheet](bash-cheatsheet) | `bash` `shell` |
+
+---
+
+## 📐 Wiki Conventions
 
 Every page has:
-- **Frontmatter**: metadata (title, slug, tags, related pages)
-- **Definition**: what is this?
-- **Properties**: key attributes
-- **Relationships**: links to related concepts
-- **Sources**: where the info came from
 
-See `README-STRUCTURE.md` for the full guide.
+- **Frontmatter** — metadata (title, slug, tags, related pages)
+- **Definition** — what is this?
+- **Properties** — key attributes
+- **Relationships** — links to related concepts
+- **Sources** — where the info came from
 
-## Example Pages
-
-The wiki includes structured knowledge on:
-
-- [AI & LLM Documentation Hub](ai-llm-docs)
-- [Getting Started Guide](getting-started)
-- [Developer Tools](developer-tools)
-- [Python Cheatsheet](python-cheatsheet)
-- [Bash Cheatsheet](bash-cheatsheet)
-
-## Building Your Wiki
-
-Start with a topic you care about:
-
-1. Create `inbox/my-research.md` with notes
-2. Run `python ingest.py`
-3. RatVault creates `Notes/my-topic.md` with:
-   - Structured outline
-   - Key concepts extracted
-   - Cross-references to existing pages
-4. Query: "Tell me about my-topic" → villa returns context-rich answer
-
-With each new source, the wiki gets **richer, more connected, and more valuable**.
-
-## Key Principles
-
-- **Compilation over retrieval**: Built once, kept current (not re-derived per query)
-- **Persistent cross-references**: Links survive and strengthen over time
-- **Human direction + LLM execution**: You manage sources, AI handles synthesis
-- **Frontmatter as truth**: Tags, categories, and relationships live in metadata
-
-## Configuration
-
-Manage providers and models in the dashboard or `config.yaml`:
-- **Ollama** (local, recommended)
-- **OpenAI**, **Anthropic**, **OpenRouter**
-
-See `CLAUDE.md` for full architecture documentation.
+See [`README-STRUCTURE.md`](README-STRUCTURE) for the full guide.
 
 ---
 
-**Dashboard**: http://localhost:8055  
-**Architecture**: See `CLAUDE.md`  
-**Structure Guide**: See `README-STRUCTURE.md`  
-**Template**: Use `TEMPLATE-ENTITY.md` for new pages  
+## 🧠 Key Principles
 
-Last updated: 2026-05-02
+- ⚙ **Compilation over retrieval** — built once, kept current
+- 🔗 **Persistent cross-references** — links survive and strengthen over time
+- 👤 **Human direction + LLM execution** — you manage sources, AI handles synthesis
+- 📋 **Frontmatter as truth** — tags, categories, and relationships live in metadata
+
+---
+
+## ⚙ Configuration
+
+Manage providers and models in the **Config** tab of the dashboard, or in `config.yaml`:
+
+| Provider | Local? | Best for |
+|---|---|---|
+| `none` | n/a | Pure Python deterministic indexing |
+| `ollama` | ✅ | Recommended local default — `mistral:7b-instruct` |
+| `openai` | ❌ | Highest-quality enrichment + vision chat |
+| `anthropic` | ❌ | Long-context summaries |
+| `openrouter` | ❌ | One key, many models |
+
+---
+
+## 🔗 Quick Links
+
+- 🌐 **Dashboard:** http://localhost:8055
+- 🏗 **Architecture:** see `CLAUDE.md` in the repo root
+- 📝 **Page template:** `README-STRUCTURE.md`
+- 💻 **Source:** [github.com/labrat-0/RatVault](https://github.com/labrat-0/RatVault)
+
+---
+
+<sub>Last updated: 2026-05-05 · Built for fast, local, private knowledge work.</sub>
